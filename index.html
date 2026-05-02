@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>지구 구조대: 마법 행동 뽑기 챌린지</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <h1>🌍 지구 구조대: 마법 행동 뽑기 챌린지</h1>
+    <p>기념일 미션을 실천하고 캐릭터를 모아 도감을 완성하세요.</p>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>오늘의 기념일</h2>
+      <select id="daySelect" aria-label="기념일 선택"></select>
+      <div id="dayInfo" class="info"></div>
+    </section>
+
+    <section class="panel">
+      <h2>미션 체크</h2>
+      <form id="missionForm"></form>
+      <div class="actions">
+        <button type="button" id="claimTickets" class="btn">뽑기권 받기</button>
+        <button type="button" id="resetMissions" class="btn ghost">미션 초기화</button>
+      </div>
+      <p id="ticketNotice" class="notice"></p>
+    </section>
+
+    <section class="panel draw-area">
+      <h2>캐릭터 뽑기</h2>
+      <p>현재 뽑기권: <strong id="ticketCount">0</strong>장</p>
+      <button type="button" id="drawBtn" class="btn primary">뽑기하기</button>
+      <div id="drawResult" class="result" aria-live="polite"></div>
+      <div class="stats">
+        <span>총 뽑기 횟수: <strong id="totalDraws">0</strong></span>
+        <span>전설 획득: <strong id="legendaryCount">0</strong></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>내 도감</h2>
+      <div id="collection" class="collection"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>중복 캐릭터 3장을 모으면 원하는 캐릭터 1장으로 교환 가능(운영 규칙).</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
