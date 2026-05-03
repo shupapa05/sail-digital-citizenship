@@ -80,6 +80,20 @@ export async function getShips() {
   });
 }
 
+export async function buyShip(studentId, shipId) {
+  return request('/rest/v1/rpc/buy_ship', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_ship_id: shipId })
+  });
+}
+
+export async function setEquippedShip(studentId, shipId) {
+  return request('/rest/v1/rpc/set_equipped_ship', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_ship_id: shipId })
+  });
+}
+
 export async function uploadProofPhoto(studentId, file) {
   if (!file) return { url: '', fileId: '' };
 
