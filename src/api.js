@@ -34,6 +34,44 @@ async function request(path, options = {}) {
 }
 
 export async function loginStudent(loginCode) {
+  try {
+    const teachers = await request(
+      `/rest/v1/teachers?login_code=eq.${encodeURIComponent(loginCode)}&select=teacher_id,name,login_code,class_code,role&limit=1`,
+      { method: 'GET' }
+    );
+
+    if (Array.isArray(teachers) && teachers.length) {
+      const teacher = teachers[0];
+
+      localStorage.setItem('SAIL_ROLE', 'teacher');
+      localStorage.setItem('SAIL_CLASS_CODE', teacher.class_code || '');
+
+      return {
+        student: {
+          student_id: teacher.teacher_id,
+          name: teacher.name,
+          login_code: teacher.login_code,
+          class_code: teacher.class_code,
+          role: 'teacher',
+          is_teacher: true
+        },
+        status: {
+          level: 1,
+          total_score: 0,
+          coin: 0,
+          streak: 0
+        },
+        missions: [],
+        today_saved_mission_ids: [],
+        today_saved_count: 0,
+        daily_limit: 0,
+        daily_limit_reasons: ['교사 계정']
+      };
+    }
+  } catch {}
+
+  localStorage.setItem('SAIL_ROLE', 'student');
+
   return request('/rest/v1/rpc/login_student', {
     method: 'POST',
     body: JSON.stringify({ p_login_code: loginCode })
