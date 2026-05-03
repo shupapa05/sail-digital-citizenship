@@ -16,6 +16,30 @@ const typeQuestion = type => ({
 function setState(next) { state = { ...state, ...next }; }
 function renderShell(content) { appEl.innerHTML = content; }
 
+function getUserRole(res) {
+  const user = res?.student || res || {};
+  return String(user.role || user.user_role || user.type || user.account_type || '').toLowerCase();
+}
+
+function isTeacherLogin(res) {
+  const role = getUserRole(res);
+  return role === 'teacher' || role === 'admin' || role === '교사' || role === '관리자' || res?.student?.is_teacher === true || res?.is_teacher === true;
+}
+
+function getClassCode(res) {
+  const user = res?.student || res || {};
+  return user.class_code || user.classCode || res?.class_code || res?.classCode || '';
+}
+
+function enterTeacherMode(res, loginCode = '') {
+  const user = res?.student || res || {};
+  localStorage.setItem('SAIL_ROLE', getUserRole(res) === 'admin' || getUserRole(res) === '관리자' ? 'admin' : 'teacher');
+  localStorage.setItem('SAIL_CLASS_CODE', getClassCode(res));
+  localStorage.setItem('SAIL_LOGIN_CODE', loginCode);
+  if (user.student_id) localStorage.setItem('SAIL_STUDENT_ID', user.student_id);
+  location.reload();
+}
+
 function todayKst() {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
@@ -62,7 +86,7 @@ function renderLogin(message = '') {
       <div class="login-panel">
         <div class="logo">SAIL</div>
         <h1>디지털 항해일지</h1>
-        <p>개인코드를 입력하고 오늘의 실천을 기록하세요.</p>
+        <p>개인코드를 입력하면 학생용 또는 교사용 화면으로 자동 이동합니다.</p>
         ${!isConfigured() ? '<div class="notice">Supabase 설정이 필요합니다.</div>' : ''}
         ${message ? `<div class="error">${esc(message)}</div>` : ''}
         <form id="loginForm" class="login-form">
@@ -78,6 +102,12 @@ function renderLogin(message = '') {
     if (!loginCode) return renderLogin('개인코드를 입력해 주세요.');
     await withBusy(event.submitter, '확인 중...', async () => {
       const res = await loginStudent(loginCode);
+      if (isTeacherLogin(res)) {
+        enterTeacherMode(res, loginCode);
+        return;
+      }
+      localStorage.setItem('SAIL_ROLE', 'student');
+      localStorage.removeItem('SAIL_CLASS_CODE');
       applyHome(res);
       localStorage.setItem('SAIL_LOGIN_CODE', loginCode);
       localStorage.setItem('SAIL_STUDENT_ID', res.student.student_id);
@@ -336,16 +366,28 @@ function nextLevelScore(score) {
 }
 
 async function autoLogin() {
+  if (localStorage.getItem('SAIL_ROLE') === 'teacher' || localStorage.getItem('SAIL_ROLE') === 'admin') return;
   const studentId = localStorage.getItem('SAIL_STUDENT_ID');
   const loginCode = localStorage.getItem('SAIL_LOGIN_CODE');
   if (!studentId || !isConfigured()) return renderLogin();
-  try { const res = await getStudentHome(studentId, loginCode); applyHome(res); renderHome(); }
-  catch { localStorage.removeItem('SAIL_STUDENT_ID'); localStorage.removeItem('SAIL_LOGIN_CODE'); renderLogin(); }
+  try {
+    const res = await getStudentHome(studentId, loginCode);
+    if (isTeacherLogin(res)) {
+      enterTeacherMode(res, loginCode);
+      return;
+    }
+    localStorage.setItem('SAIL_ROLE', 'student');
+    applyHome(res);
+    renderHome();
+  }
+  catch { localStorage.removeItem('SAIL_STUDENT_ID'); localStorage.removeItem('SAIL_LOGIN_CODE'); localStorage.removeItem('SAIL_ROLE'); renderLogin(); }
 }
 
 function logout() {
   localStorage.removeItem('SAIL_STUDENT_ID');
   localStorage.removeItem('SAIL_LOGIN_CODE');
+  localStorage.removeItem('SAIL_ROLE');
+  localStorage.removeItem('SAIL_CLASS_CODE');
   setState({ student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'], ships: [] });
   renderLogin();
 }
