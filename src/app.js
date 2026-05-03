@@ -5,7 +5,7 @@ const appEl = document.querySelector('#app');
 let state = { student: null, status: null, missions: [], todaySavedMissionIds: [], selectedMission: null };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-const typeLabel = type => ({ S: '안전', A: '책임', I: '진실', L: '경청' }[type] || type || '미션');
+const typeLabel = type => ({ S: '안전', A: '책임', I: '윤리', L: '소통' }[type] || type || '미션');
 function setState(next) { state = { ...state, ...next }; }
 function renderShell(content) { appEl.innerHTML = content; }
 
@@ -25,7 +25,6 @@ function renderLogin(message = '') {
       </div>
     </section>
   `);
-
   document.querySelector('#loginForm').addEventListener('submit', async event => {
     event.preventDefault();
     const loginCode = document.querySelector('#loginCode').value.trim();
@@ -41,12 +40,7 @@ function renderLogin(message = '') {
 }
 
 function applyHome(res) {
-  setState({
-    student: res.student,
-    status: res.status,
-    missions: res.missions || [],
-    todaySavedMissionIds: res.today_saved_mission_ids || []
-  });
+  setState({ student: res.student, status: res.status, missions: res.missions || [], todaySavedMissionIds: res.today_saved_mission_ids || [] });
 }
 
 function renderFrame(inner) {
@@ -126,7 +120,6 @@ function renderMissionForm(mission, choices) {
     if (!rows.length) return '';
     return `<fieldset class="choice-group"><legend>${index + 1}. 선택해 주세요</legend>${rows.map(row => `<label><input type="radio" name="${group}" value="${esc(row.choice_code)}" data-text="${esc(row.choice_text)}"><span>${esc(row.choice_text)}</span></label>`).join('')}</fieldset>`;
   }).join('');
-
   renderFrame(`
     <section class="mission-form">
       <p class="eyebrow">${esc(typeLabel(mission.mission_type))}</p>
