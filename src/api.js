@@ -74,6 +74,12 @@ export async function getTeacherDashboard(classCode) {
   });
 }
 
+export async function getShips() {
+  return request('/rest/v1/ships?active=eq.true&select=ship_id,name,level,price,img_url,is_default&order=level.asc,price.asc,name.asc', {
+    method: 'GET'
+  });
+}
+
 export async function uploadProofPhoto(studentId, file) {
   if (!file) return { url: '', fileId: '' };
 
