@@ -1,8 +1,8 @@
 import { getMissionChoices, getMonthlyHistory, getStudentHome, isConfigured, loginStudent, saveMissionResult, uploadProofPhoto } from './api.js';
 
-const MAX_DAILY_COMPLETIONS = 2;
+const DEFAULT_DAILY_LIMIT = 2;
 const appEl = document.querySelector('#app');
-let state = { student: null, status: null, missions: [], todaySavedMissionIds: [], selectedMission: null };
+let state = { student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'], selectedMission: null };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const typeLabel = type => ({ S: '안전', A: '책임', I: '윤리', L: '소통' }[type] || type || '미션');
@@ -40,7 +40,16 @@ function renderLogin(message = '') {
 }
 
 function applyHome(res) {
-  setState({ student: res.student, status: res.status, missions: res.missions || [], todaySavedMissionIds: res.today_saved_mission_ids || [] });
+  const savedIds = res.today_saved_mission_ids || [];
+  setState({
+    student: res.student,
+    status: res.status,
+    missions: res.missions || [],
+    todaySavedMissionIds: savedIds,
+    todaySavedCount: Number(res.today_saved_count || savedIds.length || 0),
+    dailyLimit: Number(res.daily_limit || DEFAULT_DAILY_LIMIT),
+    dailyLimitReasons: Array.isArray(res.daily_limit_reasons) ? res.daily_limit_reasons : ['기본 2개']
+  });
 }
 
 function renderFrame(inner) {
@@ -85,9 +94,12 @@ function renderHome() {
 
 function renderMissions() {
   const saved = new Set(state.todaySavedMissionIds);
-  const full = saved.size >= MAX_DAILY_COMPLETIONS;
+  const limit = Number(state.dailyLimit || DEFAULT_DAILY_LIMIT);
+  const savedCount = Number(state.todaySavedCount || saved.size || 0);
+  const full = savedCount >= limit;
+  const reasonText = (state.dailyLimitReasons || ['기본 2개']).join(' + ');
   renderFrame(`
-    <section class="section-head"><h1>미션 보기</h1><p>오늘은 최대 ${MAX_DAILY_COMPLETIONS}개까지 기록할 수 있습니다.</p></section>
+    <section class="section-head"><h1>미션 보기</h1><p>오늘 기록 가능: ${savedCount}/${limit}개 · ${esc(reasonText)} · 최대 4개</p></section>
     <section class="mission-grid">
       ${state.missions.map(mission => `<button class="mission-card" data-mission="${esc(mission.mission_id)}" ${saved.has(mission.mission_id) || full ? 'disabled' : ''}><span>${esc(typeLabel(mission.mission_type))}</span><strong>${esc(mission.mission_title)}</strong><small>${saved.has(mission.mission_id) ? '오늘 완료' : esc(mission.check_question || '실천을 기록해 주세요.')}</small></button>`).join('') || '<p class="empty">표시할 미션이 없습니다.</p>'}
     </section>
@@ -220,7 +232,7 @@ async function autoLogin() {
 function logout() {
   localStorage.removeItem('SAIL_STUDENT_ID');
   localStorage.removeItem('SAIL_LOGIN_CODE');
-  setState({ student: null, status: null, missions: [], todaySavedMissionIds: [] });
+  setState({ student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'] });
   renderLogin();
 }
 
