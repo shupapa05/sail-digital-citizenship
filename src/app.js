@@ -1,13 +1,33 @@
-import { getMissionChoices, getMonthlyHistory, getStudentHome, isConfigured, loginStudent, saveMissionResult, uploadProofPhoto } from './api.js';
+import { getShips, getMissionChoices, getMonthlyHistory, getStudentHome, isConfigured, loginStudent, saveMissionResult, uploadProofPhoto } from './api.js';
 
 const DEFAULT_DAILY_LIMIT = 2;
 const appEl = document.querySelector('#app');
-let state = { student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'], selectedMission: null };
+let state = { student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'], ships: [] };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const typeLabel = type => ({ S: '안전', A: '책임', I: '윤리', L: '소통' }[type] || type || '미션');
+const typeQuestion = type => ({
+  S: "오늘 활동 중 '이건 위험하겠다'라고 느낀 순간이 있었나요?",
+  A: '오늘 글을 올리거나 전송하기 전에 한 번 더 생각했나요?',
+  I: '오늘 사용한 자료가 누구의 것인지 확인해 보았나요?',
+  L: '오늘 상대방의 글이나 말을 끝까지 읽고 이해하려 했나요?'
+}[type] || '오늘의 실천을 기록해 볼까요?');
+
 function setState(next) { state = { ...state, ...next }; }
 function renderShell(content) { appEl.innerHTML = content; }
+
+function applyHome(res) {
+  const savedIds = res.today_saved_mission_ids || [];
+  setState({
+    student: res.student,
+    status: res.status,
+    missions: res.missions || [],
+    todaySavedMissionIds: savedIds,
+    todaySavedCount: Number(res.today_saved_count || savedIds.length || 0),
+    dailyLimit: Number(res.daily_limit || DEFAULT_DAILY_LIMIT),
+    dailyLimitReasons: Array.isArray(res.daily_limit_reasons) ? res.daily_limit_reasons : ['기본 2개']
+  });
+}
 
 function renderLogin(message = '') {
   renderShell(`
@@ -39,57 +59,50 @@ function renderLogin(message = '') {
   });
 }
 
-function applyHome(res) {
-  const savedIds = res.today_saved_mission_ids || [];
-  setState({
-    student: res.student,
-    status: res.status,
-    missions: res.missions || [],
-    todaySavedMissionIds: savedIds,
-    todaySavedCount: Number(res.today_saved_count || savedIds.length || 0),
-    dailyLimit: Number(res.daily_limit || DEFAULT_DAILY_LIMIT),
-    dailyLimitReasons: Array.isArray(res.daily_limit_reasons) ? res.daily_limit_reasons : ['기본 2개']
-  });
-}
-
 function renderFrame(inner) {
   const status = state.status || {};
   renderShell(`
     <header class="topbar">
-      <button class="ghost" id="homeBtn">홈</button>
-      <div><strong>${esc(state.student?.name || '')}</strong><span>Lv.${status.level || 1} · ${status.total_score || 0}점 · ${status.coin || 0}코인</span></div>
-      <button class="ghost" id="logoutBtn">로그아웃</button>
+      <div><strong>${esc(state.student?.name || '')}</strong></div>
+      <span class="level-pill">Lv.${status.level || 1}</span>
     </header>
     ${inner}
   `);
-  document.querySelector('#homeBtn')?.addEventListener('click', renderHome);
-  document.querySelector('#logoutBtn')?.addEventListener('click', logout);
+}
+
+function bottomNav(active) {
+  const item = (id, label) => `<button class="${active === id ? 'active' : ''}" data-nav="${id}">${label}</button>`;
+  return `<nav class="bottom-nav">${item('home', '홈')}${item('records', '기록 보기')}${item('info', '내 정보')}${item('missions', '미션 보기')}${item('stats', '통계')}<button data-nav="logout">로그아웃</button></nav>`;
+}
+
+function bindNav() {
+  document.querySelectorAll('[data-nav]').forEach(btn => btn.addEventListener('click', () => {
+    const nav = btn.dataset.nav;
+    if (nav === 'home') renderHome();
+    if (nav === 'missions') renderMissions();
+    if (nav === 'records') renderRecords();
+    if (nav === 'info') renderInfo();
+    if (nav === 'stats') renderStats();
+    if (nav === 'logout') logout();
+  }));
 }
 
 function renderHome() {
   const status = state.status || {};
+  const featured = ['S', 'A', 'I', 'L'].map(type => state.missions.find(m => m.mission_type === type) || { mission_type: type, mission_title: typeQuestion(type) });
   renderFrame(`
-    <section class="hero">
-      <div><p class="eyebrow">오늘의 항해</p><h1>${esc(state.student?.name || '')}님의 실천 기록</h1></div>
-      <div class="score-grid">
-        <div><span>점수</span><strong>${status.total_score || 0}</strong></div>
-        <div><span>코인</span><strong>${status.coin || 0}</strong></div>
-        <div><span>연속</span><strong>${status.streak || 0}일</strong></div>
-      </div>
+    <section class="home-title-card">
+      <h1>${esc(state.student?.name || '')}의 디지털 항해</h1>
+      <div class="reward-row"><span>점수 ${status.total_score || 0}</span><span>코인 ${status.coin || 0}</span></div>
     </section>
-    <section class="menu-grid">
-      <button data-view="missions">미션 보기</button>
-      <button data-view="records">기록 보기</button>
-      <button data-view="info">내 정보</button>
-      <button data-view="stats">통계</button>
+    <section class="today-title-card"><h2>오늘의 미션</h2></section>
+    <section class="today-question-list">
+      ${featured.map(item => `<button class="today-question ${esc(String(item.mission_type || '').toLowerCase())}" data-home-mission="${esc(item.mission_id || '')}" ${item.mission_id ? '' : 'disabled'}>${esc(item.event_question || item.mission_title || typeQuestion(item.mission_type))}</button>`).join('')}
     </section>
+    ${bottomNav('home')}
   `);
-  document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => {
-    if (btn.dataset.view === 'missions') renderMissions();
-    if (btn.dataset.view === 'records') renderRecords();
-    if (btn.dataset.view === 'info') renderInfo();
-    if (btn.dataset.view === 'stats') renderStats();
-  }));
+  bindNav();
+  document.querySelectorAll('[data-home-mission]').forEach(btn => btn.addEventListener('click', () => btn.dataset.homeMission && openMission(btn.dataset.homeMission)));
 }
 
 function renderMissions() {
@@ -101,9 +114,11 @@ function renderMissions() {
   renderFrame(`
     <section class="section-head"><h1>미션 보기</h1><p>오늘 기록 가능: ${savedCount}/${limit}개 · ${esc(reasonText)} · 최대 4개</p></section>
     <section class="mission-grid">
-      ${state.missions.map(mission => `<button class="mission-card" data-mission="${esc(mission.mission_id)}" ${saved.has(mission.mission_id) || full ? 'disabled' : ''}><span>${esc(typeLabel(mission.mission_type))}</span><strong>${esc(mission.mission_title)}</strong><small>${saved.has(mission.mission_id) ? '오늘 완료' : esc(mission.check_question || '실천을 기록해 주세요.')}</small></button>`).join('') || '<p class="empty">표시할 미션이 없습니다.</p>'}
+      ${state.missions.map(mission => `<button class="mission-card ${esc(String(mission.mission_type || '').toLowerCase())}" data-mission="${esc(mission.mission_id)}" ${saved.has(mission.mission_id) || full ? 'disabled' : ''}><span>${esc(typeLabel(mission.mission_type))}</span><strong>${esc(mission.mission_title)}</strong><small>${saved.has(mission.mission_id) ? '오늘 완료' : esc(mission.check_question || '실천을 기록해 주세요.')}</small></button>`).join('') || '<p class="empty">표시할 미션이 없습니다.</p>'}
     </section>
+    ${bottomNav('missions')}
   `);
+  bindNav();
   document.querySelectorAll('[data-mission]').forEach(btn => btn.addEventListener('click', () => openMission(btn.dataset.mission)));
 }
 
@@ -112,7 +127,6 @@ async function openMission(missionId) {
   if (!mission) return renderMissions();
   await withPageLoading(async () => {
     const choices = await getMissionChoices(missionId);
-    setState({ selectedMission: mission });
     renderMissionForm(mission, groupChoices(choices));
   });
 }
@@ -145,7 +159,9 @@ function renderMissionForm(mission, choices) {
         <div class="actions"><button class="primary" type="submit">저장</button><button type="button" id="backBtn">목록</button></div>
       </form>
     </section>
+    ${bottomNav('missions')}
   `);
+  bindNav();
   document.querySelector('#backBtn').addEventListener('click', renderMissions);
   document.querySelector('#missionForm').addEventListener('submit', event => submitMission(event, mission));
 }
@@ -158,17 +174,7 @@ async function submitMission(event, mission) {
   await withBusy(event.submitter, '저장 중...', async () => {
     const file = form.get('photo');
     const proof = file && file.size ? await uploadProofPhoto(state.student.student_id, file) : { url: '', fileId: '' };
-    const entry = {
-      studentId: state.student.student_id,
-      loginCode: localStorage.getItem('SAIL_LOGIN_CODE') || '',
-      missionId: mission.mission_id,
-      eventOccurred: 1,
-      success: Number(form.get('success')),
-      note: form.get('note') || '',
-      photoUrl: proof.url,
-      photoFileId: proof.fileId,
-      choices
-    };
+    const entry = { studentId: state.student.student_id, loginCode: localStorage.getItem('SAIL_LOGIN_CODE') || '', missionId: mission.mission_id, eventOccurred: 1, success: Number(form.get('success')), note: form.get('note') || '', photoUrl: proof.url, photoFileId: proof.fileId, choices };
     const res = await saveMissionResult(entry);
     applyHome(res);
     renderResult(res);
@@ -184,12 +190,14 @@ function collectChoices(form) {
 }
 
 function renderMissionError(mission, message) {
-  renderFrame(`<section class="result-card"><h1>저장하지 못했습니다</h1><p>${esc(message)}</p><button class="primary" id="retryBtn">다시 시도</button></section>`);
+  renderFrame(`<section class="result-card"><h1>저장하지 못했습니다</h1><p>${esc(message)}</p><button class="primary" id="retryBtn">다시 시도</button></section>${bottomNav('missions')}`);
+  bindNav();
   document.querySelector('#retryBtn').addEventListener('click', () => openMission(mission.mission_id));
 }
 
 function renderResult(res) {
-  renderFrame(`<section class="result-card"><h1>기록 완료</h1><p>현재 점수는 ${res.status.total_score}점, 코인은 ${res.status.coin}개입니다.</p><div class="actions"><button class="primary" id="moreBtn">미션 더 보기</button><button id="infoBtn">내 정보</button></div></section>`);
+  renderFrame(`<section class="result-card"><h1>기록 완료</h1><p>현재 점수는 ${res.status.total_score}점, 코인은 ${res.status.coin}개입니다.</p><div class="actions"><button class="primary" id="moreBtn">미션 더 보기</button><button id="infoBtn">내 정보</button></div></section>${bottomNav('missions')}`);
+  bindNav();
   document.querySelector('#moreBtn').addEventListener('click', renderMissions);
   document.querySelector('#infoBtn').addEventListener('click', renderInfo);
 }
@@ -199,57 +207,74 @@ async function renderRecords() {
   renderFrame('<section class="section-head"><h1>기록 보기</h1><p>이번 달 기록을 불러오는 중입니다.</p></section>');
   await withPageLoading(async () => {
     const res = await getMonthlyHistory(state.student.student_id, now.getFullYear(), now.getMonth() + 1);
-    renderFrame(`<section class="section-head"><h1>${now.getFullYear()}년 ${now.getMonth() + 1}월 기록</h1></section><section class="record-list">${(res.items || []).map(item => `<article><strong>${esc(item.date)}</strong><span>${esc(item.mission_title || item.mission_id)} · ${item.total_point || 0}점</span></article>`).join('') || '<p class="empty">이번 달 기록이 아직 없습니다.</p>'}</section>`);
+    renderFrame(`<section class="section-head"><h1>${now.getFullYear()}년 ${now.getMonth() + 1}월 기록</h1></section><section class="record-list">${(res.items || []).map(item => `<article><strong>${esc(item.date)}</strong><span>${esc(item.mission_title || item.mission_id)} · ${item.total_point || 0}점</span></article>`).join('') || '<p class="empty">이번 달 기록이 아직 없습니다.</p>'}</section>${bottomNav('records')}`);
+    bindNav();
   });
 }
 
-function renderInfo() {
+async function renderInfo() {
   const status = state.status || {};
-  renderFrame(`<section class="profile"><h1>내 정보</h1><div class="score-grid"><div><span>레벨</span><strong>${status.level || 1}</strong></div><div><span>배</span><strong>${esc(status.ship_type || '종이배')}</strong></div><div><span>연속 기록</span><strong>${status.streak || 0}일</strong></div></div><div class="sail-grid">${['S', 'A', 'I', 'L'].map(key => `<div><span>${key}</span><strong>${status[`${key.toLowerCase()}_count`] || 0}</strong><small>${typeLabel(key)}</small></div>`).join('')}</div></section>`);
+  await ensureShipsLoaded();
+  const ship = getEquippedShip();
+  const nextScore = nextLevelScore(status.total_score || 0);
+  const progress = nextScore ? Math.min(100, Math.round((Number(status.total_score || 0) / nextScore) * 100)) : 100;
+  renderFrame(`
+    <section class="profile"><div class="ship-profile"><div>${ship?.img_url ? `<img class="ship-image" src="${esc(ship.img_url)}" alt="${esc(ship.name || status.ship_type || '현재 배')}">` : '<div class="ship-placeholder">배 이미지</div>'}<h1>${esc(ship?.name || status.ship_type || '종이배')}</h1><p>현재 사용 중인 배</p></div><div class="level-progress-card"><span>다음 레벨까지</span><strong>${nextScore ? `${Math.max(0, nextScore - Number(status.total_score || 0))}점` : '최고 레벨'}</strong><div class="progress-track"><i style="width:${progress}%"></i></div><small>진행도 ${progress}%</small><small>연속 ${status.streak || 0}일</small></div></div></section>
+    ${bottomNav('info')}
+  `);
+  bindNav();
 }
 
 function renderStats() {
   const status = state.status || {};
   const total = ['s_count', 'a_count', 'i_count', 'l_count'].reduce((sum, key) => sum + Number(status[key] || 0), 0) || 1;
-  renderFrame(`<section class="profile"><h1>통계</h1>${[['S', 's_count'], ['A', 'a_count'], ['I', 'i_count'], ['L', 'l_count']].map(([label, key]) => { const value = Number(status[key] || 0); return `<div class="bar-row"><span>${label} ${typeLabel(label)}</span><div><i style="width:${Math.round(value / total * 100)}%"></i></div><strong>${value}</strong></div>`; }).join('')}</section>`);
+  renderFrame(`<section class="profile"><h1>나의 통계</h1><div class="sail-grid">${['S', 'A', 'I', 'L'].map(key => `<div class="sail-stat ${key.toLowerCase()}"><span>${typeLabel(key)} (${key})</span><strong>${status[`${key.toLowerCase()}_count`] || 0}</strong></div>`).join('')}</div><div class="total-stat-card"><span>전체 실천 수</span><strong>${total}</strong></div><div class="growth-card"><h2>성장 정보</h2><div class="growth-grid"><div><span>연속 실천일</span><strong>${status.streak || 0}일</strong></div><div><span>현재 레벨</span><strong>Lv.${status.level || 1}</strong></div><div><span>현재 점수</span><strong>${status.total_score || 0}점</strong></div></div></div></section>${bottomNav('stats')}`);
+  bindNav();
+}
+
+async function ensureShipsLoaded() {
+  if (state.ships.length) return;
+  try { setState({ ships: await getShips() }); } catch { setState({ ships: [] }); }
+}
+
+function getEquippedShip() {
+  const status = state.status || {};
+  return state.ships.find(ship => String(ship.ship_id) === String(status.equipped_ship_id)) || state.ships.find(ship => ship.name === status.ship_type) || state.ships.find(ship => ship.is_default) || state.ships[0] || null;
+}
+
+function nextLevelScore(score) {
+  if (score < 25) return 25;
+  if (score < 50) return 50;
+  if (score < 80) return 80;
+  if (score < 120) return 120;
+  return null;
 }
 
 async function autoLogin() {
   const studentId = localStorage.getItem('SAIL_STUDENT_ID');
   const loginCode = localStorage.getItem('SAIL_LOGIN_CODE');
   if (!studentId || !isConfigured()) return renderLogin();
-  try {
-    const res = await getStudentHome(studentId, loginCode);
-    applyHome(res);
-    renderHome();
-  } catch {
-    localStorage.removeItem('SAIL_STUDENT_ID');
-    localStorage.removeItem('SAIL_LOGIN_CODE');
-    renderLogin();
-  }
+  try { const res = await getStudentHome(studentId, loginCode); applyHome(res); renderHome(); }
+  catch { localStorage.removeItem('SAIL_STUDENT_ID'); localStorage.removeItem('SAIL_LOGIN_CODE'); renderLogin(); }
 }
 
 function logout() {
   localStorage.removeItem('SAIL_STUDENT_ID');
   localStorage.removeItem('SAIL_LOGIN_CODE');
-  setState({ student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'] });
+  setState({ student: null, status: null, missions: [], todaySavedMissionIds: [], todaySavedCount: 0, dailyLimit: DEFAULT_DAILY_LIMIT, dailyLimitReasons: ['기본 2개'], ships: [] });
   renderLogin();
 }
 
 async function withBusy(button, label, task, onError) {
   const original = button?.textContent;
   if (button) { button.disabled = true; button.textContent = label; }
-  try { await task(); }
-  catch (error) { onError(error.message || '오류가 발생했습니다.'); }
+  try { await task(); } catch (error) { onError(error.message || '오류가 발생했습니다.'); }
   finally { if (button) { button.disabled = false; button.textContent = original; } }
 }
 
 async function withPageLoading(task) {
   try { await task(); }
-  catch (error) {
-    renderFrame(`<section class="result-card"><h1>불러오지 못했습니다</h1><p>${esc(error.message)}</p><button id="backBtn">홈</button></section>`);
-    document.querySelector('#backBtn')?.addEventListener('click', renderHome);
-  }
+  catch (error) { renderFrame(`<section class="result-card"><h1>불러오지 못했습니다</h1><p>${esc(error.message)}</p><button id="backBtn">홈</button></section>${bottomNav('home')}`); bindNav(); document.querySelector('#backBtn')?.addEventListener('click', renderHome); }
 }
 
 autoLogin();
