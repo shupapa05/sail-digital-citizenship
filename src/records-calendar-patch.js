@@ -1,6 +1,23 @@
 const _fetchRecords = window.fetch.bind(window);
 window.__records = [];
 
+const css = `
+.calendar-card{background:#fff;border:1px solid #d9e5f4;border-radius:22px;padding:18px;box-shadow:0 14px 30px rgb(28 80 150 / 10%);margin-bottom:18px}
+.calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.calendar-week{margin:8px 0 12px;text-align:center;color:#31435a;font-weight:900}
+.calendar-cell{min-height:92px;background:#fff;border:1px solid #d9e5f4;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.calendar-cell.blank{background:transparent;border:0}
+.calendar-cell strong{font-size:20px;color:#07192f}
+.calendar-dots{display:flex;gap:5px;flex-wrap:wrap;min-height:12px}
+.cal-dot{width:11px;height:11px;border-radius:999px;background:#111827;display:inline-block}
+.cal-dot.s{background:#3b82f6}.cal-dot.a{background:#f97316}.cal-dot.i{background:#a855f7}.cal-dot.l{background:#22c55e}
+.calendar-cell small{font-weight:800;color:#60738d}
+@media(max-width:720px){.calendar-card{padding:12px}.calendar-week,.calendar-grid{gap:5px}.calendar-cell{min-height:68px;padding:7px;border-radius:10px}.calendar-cell strong{font-size:15px}.cal-dot{width:8px;height:8px}.calendar-cell small{font-size:11px}.calendar-week b{font-size:13px}}
+`;
+const style = document.createElement('style');
+style.textContent = css;
+document.head.appendChild(style);
+
 function d10(v) { return v ? String(v).slice(0, 10) : ''; }
 function kind(x) { return String(x.mission_type || x.type || '').toLowerCase(); }
 
