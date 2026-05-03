@@ -1,0 +1,66 @@
+:root {
+  color-scheme: light;
+  --bg: #f7faf9;
+  --ink: #17201e;
+  --muted: #65736f;
+  --line: #dce7e3;
+  --panel: #ffffff;
+  --brand: #146c63;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+button, input, select, textarea { font: inherit; }
+button { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); cursor: pointer; min-height: 44px; padding: 10px 14px; font-weight: 800; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+.primary { background: var(--brand); border-color: var(--brand); color: white; }
+.ghost { background: transparent; }
+.app-shell { width: min(1080px, 100%); margin: 0 auto; padding: 18px; }
+.login-wrap { min-height: 100svh; display: grid; place-items: center; }
+.login-panel, .mission-form, .profile, .result-card, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; box-shadow: 0 12px 30px rgb(20 46 42 / 8%); }
+.login-panel { width: min(440px, 100%); }
+.logo, .eyebrow { color: var(--brand); font-weight: 900; letter-spacing: 0; }
+h1, h2, p { margin-top: 0; }
+p, span, small { color: var(--muted); }
+.login-form, .teacher-search { display: flex; gap: 10px; }
+input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: white; }
+.topbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin-bottom: 18px; }
+.topbar div { display: flex; flex-direction: column; }
+.hero, .teacher-head, .section-head { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 18px; }
+.hero h1, .teacher-head h1, .section-head h1 { margin-bottom: 6px; font-size: clamp(28px, 4vw, 44px); }
+.score-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.score-grid div, .sail-grid div { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 110px; }
+.score-grid span, .sail-grid span { display: block; font-size: 13px; }
+.score-grid strong, .sail-grid strong { display: block; color: var(--ink); font-size: 30px; }
+.menu-grid, .mission-grid, .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.menu-grid button { min-height: 110px; font-size: 24px; }
+.mission-card { text-align: left; min-height: 150px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; }
+.mission-card strong { color: var(--ink); font-size: 22px; }
+.field, .choice-group { display: grid; gap: 8px; margin: 16px 0; }
+.choice-group { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.choice-group label { display: flex; gap: 10px; align-items: center; }
+.choice-group input { width: auto; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.notice, .error, .empty { border-radius: 8px; padding: 12px; margin: 12px 0; }
+.notice { background: #fff7ed; color: #9a5a00; }
+.error { background: #fef2f2; color: #b42318; }
+.record-list, .proof-list { display: grid; gap: 10px; }
+.record-list article, .proof-list a { display: flex; justify-content: space-between; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; }
+.sail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.bar-row { display: grid; grid-template-columns: 90px 1fr 54px; gap: 10px; align-items: center; margin: 12px 0; }
+.bar-row div { height: 12px; background: #e9f0ee; border-radius: 999px; overflow: hidden; }
+.bar-row i { display: block; height: 100%; background: var(--brand); }
+.teacher-head { align-items: center; }
+.teacher-search { width: min(360px, 100%); }
+.teacher-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 18px 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { padding: 11px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+th { color: var(--muted); font-size: 13px; }
+@media (max-width: 720px) {
+  .app-shell { padding: 12px; }
+  .hero, .teacher-head, .section-head, .login-form, .teacher-search { display: grid; align-items: stretch; }
+  .score-grid, .teacher-stats, .menu-grid, .mission-grid, .dashboard-grid, .sail-grid { grid-template-columns: 1fr; }
+  .topbar { grid-template-columns: 1fr 1fr; }
+  .topbar div { grid-column: 1 / -1; order: -1; }
+}
