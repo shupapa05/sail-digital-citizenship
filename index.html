@@ -8,6 +8,11 @@
   </head>
   <body>
     <main id="app" class="app-shell"></main>
+
+    <!-- 패치 먼저 로드 -->
+    <script type="module" src="./src/mission-stage-patch.js"></script>
+
+    <!-- 기존 앱 -->
     <script type="module" src="./src/app.js"></script>
   </body>
 </html>
