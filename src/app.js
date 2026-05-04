@@ -179,14 +179,9 @@ async function renderHome() {
       <p>오늘 미션 완료 ${savedCount}/${limit}개</p>
     </section>
 
-    <section class="home-action-grid single-action">
-      <button class="primary" data-home-action="missions">오늘 미션 하러 가기</button>
-    </section>
-
     ${bottomNav('home')}
   `);
   bindNav();
-  document.querySelector('[data-home-action="missions"]')?.addEventListener('click', renderMissions);
 }
 
 function renderMissions() {
