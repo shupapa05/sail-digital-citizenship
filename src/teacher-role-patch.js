@@ -101,6 +101,8 @@ function list(title,items,empty,type='normal'){
   const rows=items||[];
   return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list">${rows.length?rows.slice(0,8).map(x=>{
     if(type==='risk'){
+  if(document.querySelector('[data-risk-card]')) return '';
+
   const names = rows.map(x=>{
     const grade=x.grade||x.student_grade||'';
     const cls=x.class||x.class_num||x.student_class||'';
@@ -113,7 +115,7 @@ function list(title,items,empty,type='normal'){
   });
 
   return `
-    <div class="not-participant-card">
+    <div class="not-participant-card" data-risk-card="1">
       <strong>🔴 오늘 미참여 학생 (${names.length}명)</strong>
       <small style="line-height:1.6;">
         ${names.join(', ')}
