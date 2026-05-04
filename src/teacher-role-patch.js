@@ -101,27 +101,53 @@ function list(title,items,empty,type='normal'){
   const rows=items||[];
   return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list">${rows.length?rows.slice(0,8).map(x=>{
     if(type==='risk'){
-  if(document.querySelector('[data-risk-card]')) return '';
+  const role = localStorage.getItem('SAIL_ROLE') || 'teacher';
 
-  const names = rows.map(x=>{
-    const grade=x.grade||x.student_grade||'';
-    const cls=x.class||x.class_num||x.student_class||'';
-    const number=x.number||x.student_number||'';
+  // 반별 그룹화
+  const groups = {};
 
-    const prefix = grade && cls ? `${grade}-${cls} ` : '';
-    const num = number ? `${number}번 ` : '';
+  rows.forEach(x=>{
+    const grade = x.grade||x.student_grade||'';
+    const cls = x.class||x.class_num||x.student_class||'';
+    const key = grade && cls ? `${grade}-${cls}` : '기타';
 
-    return `${prefix}${num}${x.name||x.student_name||''}`;
+    if(!groups[key]) groups[key] = [];
+
+    groups[key].push(x.name||x.student_name||'');
   });
 
-  return `
-    <div class="not-participant-card" data-risk-card="1">
-      <strong>🔴 오늘 미참여 학생 (${names.length}명)</strong>
-      <small style="line-height:1.6;">
+  // 교사용 → 자기 반만 이름 출력
+  if(role === 'teacher'){
+    const allNames = Object.values(groups).flat();
+
+    return `
+      <div class="not-participant-card">
+        <strong>🔴 오늘 미참여 학생 (${allNames.length}명)</strong>
+        <small style="line-height:1.6;">
+          ${allNames.join(', ')}
+        </small>
+        <small style="margin-top:6px;display:block;">
+          → 수업 중 참여 여부만 빠르게 확인하세요.
+        </small>
+      </div>
+    `;
+  }
+
+  // 관리자 → 반별 출력
+  const groupHtml = Object.entries(groups).map(([cls,names])=>{
+    return `
+      <div style="margin-bottom:8px;">
+        <b>${cls} (${names.length}명)</b><br>
         ${names.join(', ')}
-      </small>
-      <small style="margin-top:6px;display:block;">
-        → 수업 중 참여 여부만 빠르게 확인하세요.
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="not-participant-card">
+      <strong>🔴 오늘 미참여 학생</strong>
+      <small style="line-height:1.6;">
+        ${groupHtml}
       </small>
     </div>
   `;
