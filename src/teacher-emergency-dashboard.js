@@ -84,6 +84,8 @@ function groupedNames(rows){
 
 function render(raw){
   const data = normalizeData(raw);
+  console.log('🔥 raw:', raw);
+  console.log('🔥 normalized:', data);
   const students = data.students || data.student_statuses || data.studentRows || [];
   const logs = data.logs || data.recent_logs || data.recentLogs || [];
   const choices = data.choices || data.choice_top || data.choiceTop || [];
