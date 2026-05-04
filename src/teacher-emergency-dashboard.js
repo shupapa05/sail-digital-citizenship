@@ -61,7 +61,7 @@ function requestDashboard(){
       clearTimeout(timer);
       reject(new Error(`네트워크 오류. role=${role || '없음'}, classCode=${classCode || '비어 있음'}`));
     };
-    xhr.send(JSON.stringify({ class_code: classCode }));
+    xhr.send(JSON.stringify({ p_class_code: classCode }));
   });
 }
 
