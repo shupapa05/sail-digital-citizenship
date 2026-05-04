@@ -8,6 +8,12 @@ function esc(v){
   return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 function n(v){ return Number(v || 0); }
+function normalizeData(raw){
+  if(Array.isArray(raw)) return raw[0] || {};
+  if(raw && raw.data && Array.isArray(raw.data)) return raw.data[0] || {};
+  if(raw && raw.data && typeof raw.data === 'object') return raw.data;
+  return raw || {};
+}
 function timeout(ms){
   return new Promise((_, reject) => setTimeout(() => reject(new Error('교사용 대시보드 응답이 지연되고 있습니다. Supabase get_teacher_dashboard 함수를 확인해 주세요.')), ms));
 }
@@ -38,15 +44,17 @@ function groupedNames(rows){
   return Object.values(groups).flat().map(esc).join(', ');
 }
 
-function render(data){
-  const total = n(data.total_students || data.totalStudents || data.students_total);
-  const today = n(data.today_participants || data.todayParticipants || data.today_completed || data.todayCompleted);
+function render(raw){
+  const data = normalizeData(raw);
+  const students = data.students || data.student_statuses || data.studentRows || [];
+  const logs = data.logs || data.recent_logs || data.recentLogs || [];
+  const choices = data.choices || data.choice_top || data.choiceTop || [];
+  const total = n(data.total_students || data.totalStudents || data.students_total || students.length);
+  const today = n(data.today_participants || data.todayParticipants || data.today_completed || data.todayCompleted || students.filter(s => n(s.today_count) > 0).length);
   const done = n(data.today_completed || data.todayCompleted || today);
   const absent = Math.max(0, n(data.today_not_participated || data.todayNotParticipated || total - today));
   const area = data.area_counts || data.areaCounts || data.sail_counts || {};
-  const notParticipants = data.not_participated_students || data.notParticipants || data.absent_students || data.risk_students || data.riskStudents || [];
-  const students = data.students || data.student_statuses || data.studentRows || [];
-  const choices = data.choice_top || data.choiceTop || data.choices || [];
+  const notParticipants = data.not_participated_students || data.notParticipants || data.absent_students || data.risk_students || data.riskStudents || students.filter(s => n(s.today_count) === 0);
   const rate = total ? Math.round(today / total * 100) : 0;
   const classLabel = role === 'admin' || classCode === 'ALL' ? '전체 학급' : `${classCode} 담임`;
 
@@ -90,7 +98,7 @@ function render(data){
 
       <div class="teacher-grid">
         <div class="teacher-card"><h2>행동·생각·마음 선택 분석</h2><p>${choices.length ? '선택 응답 데이터가 수집되었습니다.' : '아직 선택 응답이 부족합니다.'}</p></div>
-        <div class="teacher-card"><h2>배지 현황</h2><p>학생별 배지 진행도는 아래 표에서 확인합니다.</p></div>
+        <div class="teacher-card"><h2>최근 실천 기록</h2><p>${logs.length ? `${logs.length}개의 최근 기록이 있습니다.` : '최근 기록이 없습니다.'}</p></div>
       </div>
 
       <div class="teacher-card">
@@ -115,8 +123,8 @@ async function load(){
   if(!app || (role !== 'teacher' && role !== 'admin')) return;
   app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다.</p></section>`;
   try{
-    const data = await Promise.race([getTeacherDashboard(classCode), timeout(8000)]);
-    render(data || {});
+    const raw = await Promise.race([getTeacherDashboard(classCode), timeout(8000)]);
+    render(raw);
   }catch(error){
     app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드 오류</h1><p>${esc(error.message || '불러오지 못했습니다.')}</p><button class="teacher-refresh" data-emergency-refresh>다시 불러오기</button><button class="teacher-logout" data-emergency-logout>로그아웃</button></section>`;
     document.querySelector('[data-emergency-refresh]')?.addEventListener('click', load);
