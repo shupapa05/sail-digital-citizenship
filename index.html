@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SAIL 디지털 항해일지</title>
-    <link rel="stylesheet" href="./src/styles.css?v=20260504-safe1">
+    <link rel="stylesheet" href="./src/styles.css?v=20260504-student1">
   </head>
   <body>
     <main id="app" class="app-shell"></main>
@@ -19,7 +19,16 @@
       }
     </script>
 
-    <script type="module" src="./src/app.js?v=20260504-safe1"></script>
-    <script type="module" src="./src/teacher-emergency-dashboard.js?v=20260504-safe1"></script>
+    <script type="module" src="./src/app.js?v=20260504-student1"></script>
+
+    <!-- 학생용 패치: 학생 화면/내 정보/배 상점/기록/통계 복구 -->
+    <script type="module" src="./src/mission-stage-patch.js?v=20260504-student1"></script>
+    <script type="module" src="./src/records-calendar-patch.js?v=20260504-student1"></script>
+    <script type="module" src="./src/ship-shop-toggle-patch.js?v=20260504-student1"></script>
+    <script type="module" src="./src/student-stats-patch.js?v=20260504-student1"></script>
+    <script type="module" src="./src/student-items-patch.js?v=20260504-student1"></script>
+
+    <!-- 교사용 대시보드는 충돌 방지를 위해 단일 안정 파일만 사용 -->
+    <script type="module" src="./src/teacher-emergency-dashboard.js?v=20260504-student1"></script>
   </body>
 </html>
