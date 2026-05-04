@@ -215,3 +215,20 @@ function renderBadgeStats(rows){
     </div>
   `;
 }
+function getProgressText(row){
+  const s = Number(row.s_count || 0);
+  const a = Number(row.a_count || 0);
+  const i = Number(row.i_count || 0);
+  const l = Number(row.l_count || 0);
+
+  const arr = [
+    {key:'안전', value:s},
+    {key:'책임', value:a},
+    {key:'윤리', value:i},
+    {key:'소통', value:l},
+  ];
+
+  const min = arr.sort((a,b)=>a.value-b.value)[0];
+
+  return `${min.key} ${min.value}/10`;
+}
