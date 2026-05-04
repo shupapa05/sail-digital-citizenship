@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SAIL 디지털 항해일지</title>
-    <link rel="stylesheet" href="./src/styles.css?v=20260504-5">
+    <link rel="stylesheet" href="./src/styles.css?v=20260504-safe1">
   </head>
   <body>
     <main id="app" class="app-shell"></main>
@@ -17,60 +17,9 @@
         localStorage.removeItem('SAIL_LOGIN_CODE');
         localStorage.setItem('SAIL_STORAGE_MIGRATION_V2', 'done');
       }
-
-      function addTeacherLogoutButton() {
-        const app = document.querySelector('#app');
-        if (!app) return;
-
-        const dashboard = app.querySelector('.teacher-dashboard');
-        if (!dashboard) return;
-        if (dashboard.querySelector('[data-teacher-logout]')) return;
-
-        const top = dashboard.querySelector('.teacher-top');
-        if (!top) return;
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = '로그아웃';
-        button.setAttribute('data-teacher-logout', '1');
-        button.style.background = '#64748b';
-        button.style.color = '#fff';
-        button.style.border = '0';
-        button.style.borderRadius = '14px';
-        button.style.padding = '10px 14px';
-        button.style.fontWeight = '900';
-        button.style.marginLeft = '8px';
-        button.onclick = function () {
-          localStorage.removeItem('SAIL_ROLE');
-          localStorage.removeItem('SAIL_CLASS_CODE');
-          localStorage.removeItem('SAIL_STUDENT_ID');
-          localStorage.removeItem('SAIL_LOGIN_CODE');
-          location.reload();
-        };
-
-        top.appendChild(button);
-      }
-
-      new MutationObserver(addTeacherLogoutButton).observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-      setInterval(addTeacherLogoutButton, 700);
-      setTimeout(addTeacherLogoutButton, 200);
     </script>
 
-    <script type="module" src="./src/app.js?v=20260504-5"></script>
-    <script type="module" src="./src/mission-stage-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/records-calendar-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/ship-shop-toggle-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/student-stats-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/student-items-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-role-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-mobile-detail-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-badge-analysis-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-risk-cleanup-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-final-ui-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-student-detail-patch.js?v=20260504-5"></script>
-    <script type="module" src="./src/teacher-emergency-dashboard.js?v=20260504-5"></script>
+    <script type="module" src="./src/app.js?v=20260504-safe1"></script>
+    <script type="module" src="./src/teacher-emergency-dashboard.js?v=20260504-safe1"></script>
   </body>
 </html>
