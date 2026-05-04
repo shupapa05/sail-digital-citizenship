@@ -2,7 +2,8 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 
 const app = document.querySelector('#app');
 const role = localStorage.getItem('SAIL_ROLE');
-const classCode = role === 'admin' ? 'ALL' : (localStorage.getItem('SAIL_CLASS_CODE') || '');
+const storedClassCode = localStorage.getItem('SAIL_CLASS_CODE') || '';
+const classCode = role === 'admin' ? 'ALL' : storedClassCode;
 
 function esc(v){
   return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -26,21 +27,40 @@ function getArea(area, key){ return n(area?.[key] || area?.[key.toLowerCase()] |
 
 function requestDashboard(){
   return new Promise((resolve, reject) => {
+    if(role === 'teacher' && !classCode){
+      reject(new Error('교사 계정의 class_code가 비어 있습니다. teachers 테이블의 class_code 값을 확인해 주세요.'));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
+    let finished = false;
+    const timer = setTimeout(() => {
+      if(finished) return;
+      finished = true;
+      try { xhr.abort(); } catch {}
+      reject(new Error(`대시보드 요청 시간 초과. role=${role || '없음'}, classCode=${classCode || '비어 있음'}`));
+    }, 8000);
+
     xhr.open('POST', `${SUPABASE_URL}/rest/v1/rpc/get_teacher_dashboard`, true);
-    xhr.timeout = 8000;
     xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
     xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onload = () => {
+      if(finished) return;
+      finished = true;
+      clearTimeout(timer);
       try {
         const data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
         if(xhr.status >= 200 && xhr.status < 300) resolve(data);
         else reject(new Error(data?.message || data?.error || `대시보드 요청 실패: ${xhr.status}`));
       } catch(error){ reject(error); }
     };
-    xhr.onerror = () => reject(new Error('네트워크 오류로 대시보드 자료를 불러오지 못했습니다.'));
-    xhr.ontimeout = () => reject(new Error('교사용 대시보드 응답이 지연되고 있습니다. Supabase get_teacher_dashboard 함수를 확인해 주세요.'));
+    xhr.onerror = () => {
+      if(finished) return;
+      finished = true;
+      clearTimeout(timer);
+      reject(new Error(`네트워크 오류. role=${role || '없음'}, classCode=${classCode || '비어 있음'}`));
+    };
     xhr.send(JSON.stringify({ p_class_code: classCode }));
   });
 }
@@ -139,7 +159,7 @@ function render(raw){
 
 async function load(){
   if(!app || (role !== 'teacher' && role !== 'admin')) return;
-  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다. v6</p></section>`;
+  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다. v7</p><p>role=${esc(role || '없음')} / classCode=${esc(classCode || '비어 있음')}</p></section>`;
   try{
     const raw = await requestDashboard();
     render(raw);
