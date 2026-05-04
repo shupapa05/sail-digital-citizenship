@@ -5,6 +5,12 @@ const role = localStorage.getItem('SAIL_ROLE');
 const storedClassCode = localStorage.getItem('SAIL_CLASS_CODE') || '';
 const classCode = role === 'admin' ? 'ALL' : storedClassCode;
 
+const teacherStyle = document.createElement('style');
+teacherStyle.textContent = `
+.teacher-dashboard{display:grid;gap:16px}.teacher-card{background:#fff;border:1px solid #d9e5f4;border-radius:22px;padding:20px;box-shadow:0 14px 30px rgb(28 80 150 / 10%)}.teacher-card h1,.teacher-card h2{margin:0 0 12px;color:#07192f}.teacher-top{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;padding:26px 28px;border-radius:26px;background:linear-gradient(135deg,#fff 0%,#f8fbff 100%)}.teacher-title-wrap{display:grid;gap:10px}.teacher-kicker{display:inline-flex;width:max-content;align-items:center;border-radius:999px;background:#eaf2ff;color:#3264df;font-size:13px;font-weight:900;padding:6px 12px}.teacher-top h1{font-size:32px;letter-spacing:-.04em;line-height:1.15}.teacher-top p{margin:0;color:#60738d;font-size:15px;line-height:1.6}.teacher-actions{display:flex;gap:10px}.teacher-actions button,.teacher-refresh,.teacher-logout{border:0;border-radius:16px;padding:13px 18px;font-weight:900;cursor:pointer}.teacher-refresh{background:#3264df;color:#fff}.teacher-logout{background:#64748b;color:#fff}.teacher-class-pill{display:inline-flex;width:max-content;border:1px solid #d9e5f4;background:#fff;color:#415a77;border-radius:999px;padding:7px 12px;font-weight:900;font-size:13px}.teacher-alert{border-radius:18px;padding:16px;background:#f8fbff;border:1px solid #d9e5f4}.teacher-alert.danger{background:#fff1f2;border-color:#fecdd3}.teacher-alert.warn{background:#fff7ed;border-color:#fed7aa}.teacher-alert.good{background:#f0fdf4;border-color:#bbf7d0}.teacher-alert strong{display:block;font-size:24px;color:#07192f}.teacher-alert p{margin:6px 0 0;color:#415a77}.teacher-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.teacher-box{background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:16px;text-align:center}.teacher-box strong{display:block;font-size:34px;color:#07192f}.teacher-box span{font-weight:800;color:#60738d}.teacher-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.not-participant-card{display:grid;gap:8px;background:#fff1f2;border:1px solid #fecdd3;color:#7f1d1d;border-radius:16px;padding:14px;font-weight:900}.not-participant-card small{color:#991b1b;font-weight:800;line-height:1.6}.empty-safe{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:16px;padding:14px;font-weight:800}.teacher-row{display:grid;grid-template-columns:70px 1fr 44px;gap:10px;align-items:center;margin:10px 0}.teacher-track{height:14px;background:#e9f0f7;border-radius:999px;overflow:hidden}.teacher-fill{display:block;height:100%;border-radius:999px}.teacher-fill.s{background:#3b82f6}.teacher-fill.a{background:#f97316}.teacher-fill.i{background:#a855f7}.teacher-fill.l{background:#22c55e}.teacher-table{width:100%;border-collapse:collapse;min-width:640px}.teacher-table th,.teacher-table td{padding:11px;border-bottom:1px solid #e5edf7;text-align:left}.teacher-table th{color:#60738d}.table-scroll{overflow-x:auto}@media(max-width:720px){.teacher-summary,.teacher-grid{grid-template-columns:1fr}.teacher-top{grid-template-columns:1fr;padding:22px}.teacher-top h1{font-size:26px}.teacher-actions{display:grid;grid-template-columns:1fr 1fr}.teacher-actions button{width:100%}}
+`;
+document.head.appendChild(teacherStyle);
+
 function esc(v){
   return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -84,8 +90,6 @@ function groupedNames(rows){
 
 function render(raw){
   const data = normalizeData(raw);
-  console.log('🔥 raw:', raw);
-  console.log('🔥 normalized:', data);
   const students = data.students || data.student_statuses || data.studentRows || [];
   const logs = data.logs || data.recent_logs || data.recentLogs || [];
   const choices = data.choices || data.choice_top || data.choiceTop || [];
@@ -128,7 +132,7 @@ function render(raw){
       <div class="teacher-grid">
         <div class="teacher-card">
           <h2>🔴 오늘 미참여 학생</h2>
-          ${notParticipants.length ? `<div class="not-participant-card"><strong>오늘 미참여 학생 (${notParticipants.length}명)</strong><small style="line-height:1.6;">${groupedNames(notParticipants)}</small><small style="margin-top:6px;display:block;">→ 수업 중 참여 여부만 빠르게 확인하세요.</small></div>` : '<div class="empty-safe">오늘은 모든 학생이 참여했습니다.</div>'}
+          ${notParticipants.length ? `<div class="not-participant-card"><strong>오늘 미참여 학생 (${notParticipants.length}명)</strong><small>${groupedNames(notParticipants)}</small><small>→ 수업 중 참여 여부만 빠르게 확인하세요.</small></div>` : '<div class="empty-safe">오늘은 모든 학생이 참여했습니다.</div>'}
         </div>
         <div class="teacher-card">
           <h2>S/A/I/L 영역 분석</h2>
@@ -161,7 +165,7 @@ function render(raw){
 
 async function load(){
   if(!app || (role !== 'teacher' && role !== 'admin')) return;
-  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다. v7</p><p>role=${esc(role || '없음')} / classCode=${esc(classCode || '비어 있음')}</p></section>`;
+  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다.</p><p>role=${esc(role || '없음')} / classCode=${esc(classCode || '비어 있음')}</p></section>`;
   try{
     const raw = await requestDashboard();
     render(raw);
