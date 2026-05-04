@@ -44,8 +44,15 @@ const css = `
 .teacher-line{width:100%;height:auto;color:#3264df;background:#f8fbff;border-radius:16px;padding:8px}
 .teacher-line text{font-size:10px;fill:#60738d}
 .choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.choice-box{background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:14px}
-.choice-box strong{font-size:24px}
+.choice-box{background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:14px;display:grid;gap:8px}
+.choice-box span{font-weight:900;color:#60738d}
+.choice-box strong{font-size:28px;color:#07192f}
+.choice-box p{margin:0;color:#415a77;line-height:1.45;font-size:13px}
+.choice-meter{height:10px;background:#e9f0f7;border-radius:999px;overflow:hidden}
+.choice-meter i{display:block;height:100%;border-radius:999px;background:#3264df}
+.choice-insight{margin-top:14px;background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:14px;color:#07192f;line-height:1.55}
+.choice-insight b{color:#3264df}
+.choice-guide{display:grid;gap:6px;margin-top:10px;color:#60738d;font-size:13px;line-height:1.45}
 .teacher-table{width:100%;border-collapse:collapse;min-width:720px}
 .teacher-table th,.teacher-table td{padding:11px;border-bottom:1px solid #e5edf7;text-align:left}
 .teacher-table th{color:#60738d}
@@ -104,7 +111,38 @@ function list(title,items,empty,type='normal'){
     return `<div class="teacher-item"><b>${esc(x.name||x.student_name||x.title||x.mission_title||'학생')}</b><span class="teacher-badge orange">${esc(x.reason||x.count||x.date||'확인')}</span><small>${esc(x.memo||x.note||x.detail||'')}</small></div>`;
   }).join(''):`<div class="empty-safe">${empty}</div>`}</div></div>`;
 }
-function choiceSummary(choices){const arr=(choices||[]).slice(0,9);return `<div class="teacher-card"><h2>행동·생각·마음 선택 분석</h2><div class="choice-grid">${['행동','생각','마음'].map((name,idx)=>{const part=arr.filter((_,i)=>i%3===idx);return `<div class="choice-box"><span>${name}</span><strong>${part.reduce((s,x)=>s+n(x.count||x.total||1),0)}</strong><p>${part.length?part.slice(0,3).map(x=>`${esc(x.text||x.choice_text||x.title||'응답')} ${esc(x.count||'')}`).join('<br>'):'응답 부족'}</p></div>`}).join('')}</div><p>긍정·보통·부정 선택 비율을 통해 학급 분위기와 개입 대상을 판단합니다.</p></div>`}
+function choiceKind(row,index){
+  const raw=String(row.choice_group||row.choiceGroup||row.group||row.category||row.type||row.kind||row.dimension||'').toLowerCase();
+  if(raw.includes('행동')||raw.includes('action')||raw.includes('choice1'))return 'action';
+  if(raw.includes('생각')||raw.includes('think')||raw.includes('thought')||raw.includes('choice2'))return 'think';
+  if(raw.includes('마음')||raw.includes('감정')||raw.includes('heart')||raw.includes('emotion')||raw.includes('choice3'))return 'heart';
+  return ['action','think','heart'][index%3];
+}
+function choiceText(row){return row.text||row.choice_text||row.choiceText||row.title||row.label||row.answer||'응답'}
+function choiceCount(row){return n(row.count||row.total||row.value||row.cnt||1)}
+function choiceSummary(choices){
+  const rows=Array.isArray(choices)?choices:[];
+  const groups={
+    action:{name:'행동',desc:'실천으로 옮기려는 선택',total:0,items:[]},
+    think:{name:'생각',desc:'상황을 판단하고 이해하는 선택',total:0,items:[]},
+    heart:{name:'마음',desc:'감정·공감·관계를 살피는 선택',total:0,items:[]}
+  };
+  rows.forEach((row,index)=>{
+    const key=choiceKind(row,index);
+    const item={text:choiceText(row),count:choiceCount(row)};
+    groups[key].total+=item.count;
+    groups[key].items.push(item);
+  });
+  const ordered=Object.values(groups);
+  const maxTotal=Math.max(1,...ordered.map(g=>g.total));
+  const top=[...ordered].sort((a,b)=>b.total-a.total)[0];
+  const low=[...ordered].sort((a,b)=>a.total-b.total)[0];
+  const total=ordered.reduce((sum,g)=>sum+g.total,0);
+  const insight=total===0
+    ? '아직 선택 응답이 부족합니다. 학생들이 미션을 1회 이상 기록하면 학급 경향이 표시됩니다.'
+    : `<b>${top.name}</b> 선택이 가장 많습니다. ${top.name==='행동'?'실천 의지는 높으므로 경험을 나누게 하면 좋습니다.':top.name==='생각'?'판단과 이해 중심 반응이 강하므로 실제 행동 연결 질문을 더하면 좋습니다.':'공감과 관계 인식이 잘 나타나므로 구체적인 실천 약속으로 이어가면 좋습니다.'} 상대적으로 <b>${low.name}</b> 선택이 낮아 이 부분을 다음 활동에서 보완하면 좋습니다.`;
+  return `<div class="teacher-card"><h2>행동·생각·마음 선택 분석</h2><div class="choice-grid">${ordered.map(g=>`<div class="choice-box"><span>${g.name}</span><strong>${g.total}</strong><div class="choice-meter"><i style="width:${Math.round(g.total/maxTotal*100)}%"></i></div><p>${g.desc}</p><p>${g.items.length?g.items.sort((a,b)=>b.count-a.count).slice(0,2).map(x=>`${esc(x.text)} ${esc(x.count)}`).join('<br>'):'응답 부족'}</p></div>`).join('')}</div><div class="choice-insight">${insight}</div><div class="choice-guide"><span>행동: 바로 실천하려는 반응</span><span>생각: 기준을 세우고 판단하는 반응</span><span>마음: 공감과 감정을 살피는 반응</span></div></div>`;
+}
 function studentTable(rows){const data=(rows||[]).slice(0,30);return `<div class="teacher-card"><h2>학생별 개입 현황</h2><div class="table-scroll"><table class="teacher-table"><thead><tr><th>이름</th><th>상태</th><th>강점</th><th>보완</th><th>교사 행동</th></tr></thead><tbody>${data.length?data.map(s=>{const score=n(s.total_score||s.score||s.count);const state=score<=3?['🔴 위험','state-red','즉시 확인']:score<=8?['🟠 관찰','state-orange','균형 지도']:['🟢 안정','state-green','유지·칭찬'];return `<tr><td>${esc(s.name||s.student_name||'학생')}</td><td class="${state[1]}">${state[0]}</td><td>${esc(areaLabel(s.strong||s.best_area||''))}</td><td>${esc(areaLabel(s.weak||s.weak_area||''))}</td><td>${state[2]}</td></tr>`}).join(''):'<tr><td colspan="5">학생별 데이터가 아직 부족합니다.</td></tr>'}</tbody></table></div></div>`}
 function renderTeacher(data){
   const total=n(data.total_students||data.totalStudents||data.students_total);
