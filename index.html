@@ -10,8 +10,6 @@
     <main id="app" class="app-shell"></main>
 
     <script>
-      // 예전 버전에서 남은 교사용 고정 저장값을 1회 정리합니다.
-      // 이후 교사 개인코드로 다시 로그인하면 교사용 대시보드로 이동합니다.
       if (localStorage.getItem('SAIL_STORAGE_MIGRATION_V2') !== 'done') {
         localStorage.removeItem('SAIL_ROLE');
         localStorage.removeItem('SAIL_CLASS_CODE');
@@ -20,7 +18,6 @@
         localStorage.setItem('SAIL_STORAGE_MIGRATION_V2', 'done');
       }
 
-      // 교사용 대시보드에는 학생용 하단 메뉴가 없으므로 로그아웃 버튼을 별도로 주입합니다.
       function addTeacherLogoutButton() {
         const app = document.querySelector('#app');
         if (!app) return;
@@ -67,8 +64,8 @@
     <script type="module" src="./src/ship-shop-toggle-patch.js"></script>
     <script type="module" src="./src/student-stats-patch.js"></script>
     <script type="module" src="./src/teacher-role-patch.js"></script>
+    <script type="module" src="./src/teacher-mobile-detail-patch.js"></script>
 
-<!-- 기존 앱 -->
 <script type="module" src="./src/app.js"></script>
   </body>
 </html>
