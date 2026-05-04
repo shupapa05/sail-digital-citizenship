@@ -129,7 +129,7 @@ function renderFrame(inner) {
 
 function bottomNav(active) {
   const item = (id, label) => `<button class="${active === id ? 'active' : ''}" data-nav="${id}">${label}</button>`;
-  return `<nav class="bottom-nav">${item('home', '홈')}${item('records', '기록 보기')}${item('info', '내 정보')}${item('missions', '미션 보기')}${item('stats', '통계')}<button data-nav="logout">로그아웃</button></nav>`;
+  return `<nav class="bottom-nav">${item('home', '홈')}${item('missions', '미션')}${item('records', '기록')}${item('info', '내정보')}<button data-nav="logout">나가기</button></nav>`;
 }
 
 function bindNav() {
@@ -139,28 +139,58 @@ function bindNav() {
     if (nav === 'missions') renderMissions();
     if (nav === 'records') renderRecords();
     if (nav === 'info') renderInfo();
-    if (nav === 'stats') renderStats();
     if (nav === 'logout') logout();
   }));
 }
 
-function renderHome() {
+async function renderHome() {
   const status = state.status || {};
-  const missions = todayMissions();
-  const featured = ['S', 'A', 'I', 'L'].map(type => missions.find(m => m.mission_type === type) || { mission_type: type, mission_title: typeQuestion(type) });
+  await ensureShipsLoaded();
+  const ship = getEquippedShip();
+  const limit = Number(state.dailyLimit || DEFAULT_DAILY_LIMIT);
+  const savedCount = Number(state.todaySavedCount || 0);
+  const nextScore = nextLevelScore(status.total_score || 0);
+  const progress = nextScore ? Math.min(100, Math.round((Number(status.total_score || 0) / nextScore) * 100)) : 100;
+
   renderFrame(`
-    <section class="home-title-card">
-      <h1>${esc(state.student?.name || '')}의 디지털 항해</h1>
-      <div class="reward-row"><span>점수 ${status.total_score || 0}</span><span>코인 ${status.coin || 0}</span></div>
+    <section class="home-title-card student-home-main">
+      <div class="ship-profile">
+        <div>
+          ${ship?.img_url ? `<img class="ship-image" src="${esc(ship.img_url)}" alt="${esc(ship.name || status.ship_type || '현재 배')}">` : '<div class="ship-placeholder">배 이미지</div>'}
+          <h1>${esc(state.student?.name || '')}의 디지털 항해</h1>
+          <p>${esc(ship?.name || status.ship_type || '종이배')}로 항해 중</p>
+        </div>
+        <div class="level-progress-card">
+          <span>현재 레벨</span>
+          <strong>Lv.${status.level || 1}</strong>
+          <div class="progress-track"><i style="width:${progress}%"></i></div>
+          <small>${nextScore ? `다음 레벨까지 ${Math.max(0, nextScore - Number(status.total_score || 0))}점` : '최고 레벨'}</small>
+        </div>
+      </div>
+      <div class="reward-row">
+        <span>점수 ${status.total_score || 0}</span>
+        <span>코인 ${status.coin || 0}</span>
+        <span>연속 ${status.streak || 0}일</span>
+      </div>
     </section>
-    <section class="today-title-card"><h2>오늘의 미션</h2></section>
-    <section class="today-question-list">
-      ${featured.map(item => `<button class="today-question ${esc(String(item.mission_type || '').toLowerCase())}" data-home-mission="${esc(item.mission_id || '')}" ${item.mission_id ? '' : 'disabled'}>${esc(item.event_question || item.mission_title || typeQuestion(item.mission_type))}</button>`).join('')}
+
+    <section class="today-title-card">
+      <h2>오늘의 항해 현황</h2>
+      <p>오늘 미션 완료 ${savedCount}/${limit}개</p>
     </section>
+
+    <section class="home-action-grid">
+      <button class="primary" data-home-action="missions">오늘 미션 하러 가기</button>
+      <button data-home-action="records">나의 기록</button>
+      <button data-home-action="info">배상점 / 내정보</button>
+    </section>
+
     ${bottomNav('home')}
   `);
   bindNav();
-  document.querySelectorAll('[data-home-mission]').forEach(btn => btn.addEventListener('click', () => btn.dataset.homeMission && openMission(btn.dataset.homeMission)));
+  document.querySelector('[data-home-action="missions"]')?.addEventListener('click', renderMissions);
+  document.querySelector('[data-home-action="records"]')?.addEventListener('click', renderRecords);
+  document.querySelector('[data-home-action="info"]')?.addEventListener('click', renderInfo);
 }
 
 function renderMissions() {
@@ -255,10 +285,10 @@ function renderMissionError(mission, message) {
 }
 
 function renderResult(res) {
-  renderFrame(`<section class="result-card"><h1>기록 완료</h1><p>현재 점수는 ${res.status.total_score}점, 코인은 ${res.status.coin}개입니다.</p><div class="actions"><button class="primary" id="moreBtn">미션 더 보기</button><button id="infoBtn">내 정보</button></div></section>${bottomNav('missions')}`);
+  renderFrame(`<section class="result-card"><h1>기록 완료</h1><p>현재 점수는 ${res.status.total_score}점, 코인은 ${res.status.coin}개입니다.</p><div class="actions"><button class="primary" id="homeBtn">홈으로</button><button id="moreBtn">미션 더 보기</button></div></section>${bottomNav('missions')}`);
   bindNav();
+  document.querySelector('#homeBtn').addEventListener('click', renderHome);
   document.querySelector('#moreBtn').addEventListener('click', renderMissions);
-  document.querySelector('#infoBtn').addEventListener('click', renderInfo);
 }
 
 async function renderRecords() {
@@ -343,7 +373,7 @@ async function reloadHomeAndInfo() {
 function renderStats() {
   const status = state.status || {};
   const total = ['s_count', 'a_count', 'i_count', 'l_count'].reduce((sum, key) => sum + Number(status[key] || 0), 0) || 1;
-  renderFrame(`<section class="profile"><h1>나의 통계</h1><div class="sail-grid">${['S', 'A', 'I', 'L'].map(key => `<div class="sail-stat ${key.toLowerCase()}"><span>${typeLabel(key)} (${key})</span><strong>${status[`${key.toLowerCase()}_count`] || 0}</strong></div>`).join('')}</div><div class="total-stat-card"><span>전체 실천 수</span><strong>${total}</strong></div><div class="growth-card"><h2>성장 정보</h2><div class="growth-grid"><div><span>연속 실천일</span><strong>${status.streak || 0}일</strong></div><div><span>현재 레벨</span><strong>Lv.${status.level || 1}</strong></div><div><span>현재 점수</span><strong>${status.total_score || 0}점</strong></div></div></div></section>${bottomNav('stats')}`);
+  renderFrame(`<section class="profile"><h1>나의 통계</h1><div class="sail-grid">${['S', 'A', 'I', 'L'].map(key => `<div class="sail-stat ${key.toLowerCase()}"><span>${typeLabel(key)} (${key})</span><strong>${status[`${key.toLowerCase()}_count`] || 0}</strong></div>`).join('')}</div><div class="total-stat-card"><span>전체 실천 수</span><strong>${total}</strong></div><div class="growth-card"><h2>성장 정보</h2><div class="growth-grid"><div><span>연속 실천일</span><strong>${status.streak || 0}일</strong></div><div><span>현재 레벨</span><strong>Lv.${status.level || 1}</strong></div><div><span>현재 점수</span><strong>${status.total_score || 0}점</strong></div></div></div></section>${bottomNav('info')}`);
   bindNav();
 }
 
