@@ -133,8 +133,6 @@ function patch(){
   if (home && !home.querySelector('[data-item-dock]')) home.insertAdjacentHTML('beforeend', dockHtml());
   const profile = document.querySelector('.profile');
   if (profile && !document.querySelector('[data-item-shop]')) profile.insertAdjacentHTML('afterend', shopHtml());
-  const shipBox = document.querySelector('.ship-profile > div:first-child');
-  if (shipBox && !shipBox.querySelector('[data-item-dock]')) shipBox.insertAdjacentHTML('beforeend', dockHtml());
 }
 document.addEventListener('click', event => {
   const card = event.target.closest && event.target.closest('[data-item-id]');
