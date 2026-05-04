@@ -1,4 +1,4 @@
-import { getTeacherDashboard } from './api.js';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 
 const app = document.querySelector('#app');
 const role = localStorage.getItem('SAIL_ROLE');
@@ -14,9 +14,6 @@ function normalizeData(raw){
   if(raw && raw.data && typeof raw.data === 'object') return raw.data;
   return raw || {};
 }
-function timeout(ms){
-  return new Promise((_, reject) => setTimeout(() => reject(new Error('교사용 대시보드 응답이 지연되고 있습니다. Supabase get_teacher_dashboard 함수를 확인해 주세요.')), ms));
-}
 function logout(){
   localStorage.removeItem('SAIL_ROLE');
   localStorage.removeItem('SAIL_CLASS_CODE');
@@ -26,6 +23,27 @@ function logout(){
 }
 function areaLabel(t){ return {S:'안전',A:'책임',I:'윤리',L:'소통'}[String(t).toUpperCase()] || t; }
 function getArea(area, key){ return n(area?.[key] || area?.[key.toLowerCase()] || 0); }
+
+function requestDashboard(){
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${SUPABASE_URL}/rest/v1/rpc/get_teacher_dashboard`, true);
+    xhr.timeout = 8000;
+    xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = () => {
+      try {
+        const data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+        if(xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data?.message || data?.error || `대시보드 요청 실패: ${xhr.status}`));
+      } catch(error){ reject(error); }
+    };
+    xhr.onerror = () => reject(new Error('네트워크 오류로 대시보드 자료를 불러오지 못했습니다.'));
+    xhr.ontimeout = () => reject(new Error('교사용 대시보드 응답이 지연되고 있습니다. Supabase get_teacher_dashboard 함수를 확인해 주세요.'));
+    xhr.send(JSON.stringify({ p_class_code: classCode }));
+  });
+}
 
 function groupedNames(rows){
   const groups = {};
@@ -121,9 +139,9 @@ function render(raw){
 
 async function load(){
   if(!app || (role !== 'teacher' && role !== 'admin')) return;
-  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다.</p></section>`;
+  app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드</h1><p>비상 대시보드로 자료를 불러오는 중입니다. v6</p></section>`;
   try{
-    const raw = await Promise.race([getTeacherDashboard(classCode), timeout(8000)]);
+    const raw = await requestDashboard();
     render(raw);
   }catch(error){
     app.innerHTML = `<section class="teacher-card"><h1>교사용 대시보드 오류</h1><p>${esc(error.message || '불러오지 못했습니다.')}</p><button class="teacher-refresh" data-emergency-refresh>다시 불러오기</button><button class="teacher-logout" data-emergency-logout>로그아웃</button></section>`;
