@@ -101,13 +101,29 @@ function list(title,items,empty,type='normal'){
   const rows=items||[];
   return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list">${rows.length?rows.slice(0,8).map(x=>{
     if(type==='risk'){
-      const grade=x.grade||x.student_grade||'';
-      const cls=x.class||x.class_num||x.student_class||'';
-      const number=x.number||x.student_number||'';
-      const classText=grade&&cls?`${esc(grade)}-${esc(cls)} `:'';
-      const numberText=number?`${esc(number)}번 `:'';
-      return `<div class="not-participant-card"><strong>${classText}${numberText}${esc(x.name||x.student_name||'학생')}</strong><small>오늘 기록이 없습니다. 수업 중 짧게 참여 여부를 확인해 주세요.</small></div>`;
-    }
+  const names = rows.map(x=>{
+    const grade=x.grade||x.student_grade||'';
+    const cls=x.class||x.class_num||x.student_class||'';
+    const number=x.number||x.student_number||'';
+
+    const prefix = grade && cls ? `${grade}-${cls} ` : '';
+    const num = number ? `${number}번 ` : '';
+
+    return `${prefix}${num}${x.name||x.student_name||''}`;
+  });
+
+  return `
+    <div class="not-participant-card">
+      <strong>🔴 오늘 미참여 학생 (${names.length}명)</strong>
+      <small style="line-height:1.6;">
+        ${names.join(', ')}
+      </small>
+      <small style="margin-top:6px;display:block;">
+        → 수업 중 참여 여부만 빠르게 확인하세요.
+      </small>
+    </div>
+  `;
+}
     return `<div class="teacher-item"><b>${esc(x.name||x.student_name||x.title||x.mission_title||'학생')}</b><span class="teacher-badge orange">${esc(x.reason||x.count||x.date||'확인')}</span><small>${esc(x.memo||x.note||x.detail||'')}</small></div>`;
   }).join(''):`<div class="empty-safe">${empty}</div>`}</div></div>`;
 }
