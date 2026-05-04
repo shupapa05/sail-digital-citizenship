@@ -9,6 +9,18 @@
   <body>
     <main id="app" class="app-shell"></main>
 
+    <script>
+      // 예전 버전에서 남은 교사용 고정 localStorage를 1회 정리합니다.
+      // 이후 교사 개인코드로 다시 로그인하면 정상적으로 교사용 대시보드로 이동합니다.
+      if (localStorage.getItem('SAIL_STORAGE_MIGRATION_V2') !== 'done') {
+        localStorage.removeItem('SAIL_ROLE');
+        localStorage.removeItem('SAIL_CLASS_CODE');
+        localStorage.removeItem('SAIL_STUDENT_ID');
+        localStorage.removeItem('SAIL_LOGIN_CODE');
+        localStorage.setItem('SAIL_STORAGE_MIGRATION_V2', 'done');
+      }
+    </script>
+
     <script type="module" src="./src/mission-stage-patch.js"></script>
     <script type="module" src="./src/records-calendar-patch.js"></script>
     <script type="module" src="./src/ship-shop-toggle-patch.js"></script>
