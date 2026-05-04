@@ -97,63 +97,55 @@ function areaRows(area){return ['S','A','I','L'].map(t=>({t,v:n(area?.[t]||area?
 function areaBars(area){const rows=areaRows(area);const max=Math.max(1,...rows.map(x=>x.v));return `<div class="teacher-bars">${rows.map(x=>`<div class="teacher-row"><b>${areaLabel(x.t)}</b><div class="teacher-track"><i class="teacher-fill ${x.t.toLowerCase()}" style="width:${Math.round(x.v/max*100)}%"></i></div><strong>${x.v}</strong></div>`).join('')}</div>`}
 function weakestArea(area){return areaRows(area).sort((a,b)=>a.v-b.v)[0]}
 function strongestArea(area){return areaRows(area).sort((a,b)=>b.v-a.v)[0]}
-function list(title,items,empty,type='normal'){
-  const rows=items||[];
-  return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list">${rows.length?rows.slice(0,8).map(x=>{
-    if(type==='risk'){
-  const role = localStorage.getItem('SAIL_ROLE') || 'teacher';
-
-  // 반별 그룹화
-  const groups = {};
-
-  rows.forEach(x=>{
-    const grade = x.grade||x.student_grade||'';
-    const cls = x.class||x.class_num||x.student_class||'';
-    const key = grade && cls ? `${grade}-${cls}` : '기타';
-
-    if(!groups[key]) groups[key] = [];
-
-    groups[key].push(x.name||x.student_name||'');
-  });
-
-  // 교사용 → 자기 반만 이름 출력
-  if(role === 'teacher'){
-    const allNames = Object.values(groups).flat();
-
-    return `
-      <div class="not-participant-card">
-        <strong>🔴 오늘 미참여 학생 (${allNames.length}명)</strong>
-        <small style="line-height:1.6;">
-          ${allNames.join(', ')}
-        </small>
-        <small style="margin-top:6px;display:block;">
-          → 수업 중 참여 여부만 빠르게 확인하세요.
-        </small>
-      </div>
-    `;
+function groupedRiskList(title, rows, empty){
+  const data = rows || [];
+  if(!data.length){
+    return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list"><div class="empty-safe">${empty}</div></div></div>`;
   }
 
-  // 관리자 → 반별 출력
-  const groupHtml = Object.entries(groups).map(([cls,names])=>{
-    return `
-      <div style="margin-bottom:8px;">
-        <b>${cls} (${names.length}명)</b><br>
-        ${names.join(', ')}
+  const role = localStorage.getItem('SAIL_ROLE') || 'teacher';
+  const groups = {};
+
+  data.forEach(x=>{
+    const grade = x.grade || x.student_grade || '';
+    const cls = x.class || x.class_num || x.student_class || '';
+    const key = grade && cls ? `${grade}-${cls}` : '기타';
+    if(!groups[key]) groups[key] = [];
+    const number = x.number || x.student_number || '';
+    const name = x.name || x.student_name || '학생';
+    groups[key].push(`${number ? `${number}번 ` : ''}${name}`);
+  });
+
+  let body = '';
+  if(role === 'admin'){
+    body = Object.entries(groups).map(([cls,names])=>`
+      <div style="margin-bottom:10px;">
+        <b>${esc(cls)} (${names.length}명)</b><br>
+        ${names.map(esc).join(', ')}
       </div>
-    `;
-  }).join('');
+    `).join('');
+  }else{
+    const names = Object.values(groups).flat();
+    body = `<div>${names.map(esc).join(', ')}</div>`;
+  }
 
   return `
-    <div class="not-participant-card">
-      <strong>🔴 오늘 미참여 학생</strong>
-      <small style="line-height:1.6;">
-        ${groupHtml}
-      </small>
+    <div class="teacher-card"><h2>${title}</h2>
+      <div class="teacher-list">
+        <div class="not-participant-card">
+          <strong>🔴 오늘 미참여 학생 (${data.length}명)</strong>
+          <small style="line-height:1.6;">${body}</small>
+          <small style="margin-top:6px;display:block;">→ 수업 중 참여 여부만 빠르게 확인하세요.</small>
+        </div>
+      </div>
     </div>
   `;
 }
-    return `<div class="teacher-item"><b>${esc(x.name||x.student_name||x.title||x.mission_title||'학생')}</b><span class="teacher-badge orange">${esc(x.reason||x.count||x.date||'확인')}</span><small>${esc(x.memo||x.note||x.detail||'')}</small></div>`;
-  }).join(''):`<div class="empty-safe">${empty}</div>`}</div></div>`;
+
+function list(title,items,empty,type='normal'){
+  const rows=items||[];
+  if(type==='risk') return groupedRiskList(title, rows, empty);
+  return `<div class="teacher-card"><h2>${title}</h2><div class="teacher-list">${rows.length?rows.slice(0,8).map(x=>`<div class="teacher-item"><b>${esc(x.name||x.student_name||x.title||x.mission_title||'학생')}</b><span class="teacher-badge orange">${esc(x.reason||x.count||x.date||'확인')}</span><small>${esc(x.memo||x.note||x.detail||'')}</small></div>`).join(''):`<div class="empty-safe">${empty}</div>`}</div></div>`;
 }
 function choiceKind(row,index){
   const raw=String(row.choice_group||row.choiceGroup||row.group||row.category||row.type||row.kind||row.dimension||'').toLowerCase();
