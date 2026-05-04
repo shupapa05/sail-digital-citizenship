@@ -191,3 +191,27 @@ function maybeTeacher(){if(!isTeacherMode())return;forceTeacher()}
 new MutationObserver(maybeTeacher).observe(document.body,{childList:true,subtree:true});
 setInterval(maybeTeacher,700);
 setTimeout(maybeTeacher,200);
+function renderBadgeStats(rows){
+  let stats = { S:0, A:0, I:0, L:0 };
+
+  rows.forEach(r=>{
+    const items = r.items || [];
+
+    if(items.includes('badge_s')) stats.S++;
+    if(items.includes('badge_a')) stats.A++;
+    if(items.includes('badge_i')) stats.I++;
+    if(items.includes('badge_l')) stats.L++;
+  });
+
+  return `
+    <div class="teacher-card">
+      <h2>배지 현황</h2>
+      <div class="teacher-grid">
+        <div>🟦 안전 ${stats.S}명</div>
+        <div>🟧 책임 ${stats.A}명</div>
+        <div>🟪 윤리 ${stats.I}명</div>
+        <div>🟩 소통 ${stats.L}명</div>
+      </div>
+    </div>
+  `;
+}
