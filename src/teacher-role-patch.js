@@ -232,3 +232,59 @@ function getProgressText(row){
 
   return `${min.key} ${min.value}/10`;
 }
+
+function renderBadgeProgressTable(rows){
+  function num(v){ return Number(v||0); }
+
+  function getRow(r){
+    const s = num(r.s_count);
+    const a = num(r.a_count);
+    const i = num(r.i_count);
+    const l = num(r.l_count);
+
+    const arr = [
+      {k:'안전', v:s},
+      {k:'책임', v:a},
+      {k:'윤리', v:i},
+      {k:'소통', v:l}
+    ];
+
+    const min = arr.sort((a,b)=>a.v-b.v)[0];
+
+    return `
+      <tr>
+        <td>${r.name || r.student_name || ''}</td>
+        <td>${s}/10</td>
+        <td>${a}/10</td>
+        <td>${i}/10</td>
+        <td>${l}/10</td>
+        <td style="font-weight:900;color:#334155;">
+          ${min.k} ${min.v}/10
+        </td>
+      </tr>
+    `;
+  }
+
+  return `
+    <div class="teacher-card">
+      <h2>학생별 배지 진행도</h2>
+      <div class="table-scroll">
+        <table class="teacher-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>안전</th>
+              <th>책임</th>
+              <th>윤리</th>
+              <th>소통</th>
+              <th>집중 필요</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(rows||[]).map(getRow).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
