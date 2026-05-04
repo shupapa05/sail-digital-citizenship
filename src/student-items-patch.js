@@ -12,7 +12,7 @@ const STATUS_KEY = 'SAIL_STUDENT_STATUS_CACHE_V1';
 const style = document.createElement('style');
 style.textContent = `
 .item-dock{margin-top:12px;background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:12px;display:grid;gap:10px}
-.item-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900;color:#07192f}.item-title small{color:#60738d;font-size:12px;font-weight:800}.item-row{display:flex;gap:8px;flex-wrap:wrap}.item-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #d9e5f4;border-radius:999px;padding:7px 10px;font-weight:900;color:#415a77}.item-mark{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#3264df;color:#fff;font-size:13px}.item-guide{background:#eef6ff;border:1px solid #bfdbfe;border-radius:14px;padding:10px 12px;color:#1e3a8a;font-size:13px;font-weight:800;line-height:1.45}
+.item-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900;color:#07192f}.item-title small{color:#60738d;font-size:12px;font-weight:800}.item-row{display:flex;gap:8px;flex-wrap:wrap}.item-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #d9e5f4;border-radius:999px;padding:7px 10px;font-weight:900;color:#415a77}.item-mark{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#3264df;color:#fff;font-size:13px}.item-guide{background:#eef6ff;border:1px solid #bfdbfe;border-radius:14px;padding:10px 12px;color:#1e3a8a;font-size:13px;font-weight:800;line-height:1.45}.item-earn{background:#fef3c7;border:1px solid #fcd34d;border-radius:14px;padding:10px 12px;color:#92400e;font-size:13px;font-weight:900;line-height:1.45}
 .item-shop{margin-top:14px;background:#fff;border:1px solid #d9e5f4;border-radius:22px;padding:18px;box-shadow:0 14px 30px rgb(28 80 150 / 8%)}.item-shop h2{margin:0 0 6px;color:#07192f}.item-shop p{margin:0 0 12px;color:#60738d;line-height:1.5}.item-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.item-card{border:1px solid #d9e5f4;background:#f8fbff;border-radius:18px;padding:13px;display:grid;gap:8px;cursor:pointer}.item-card.on{background:#eff6ff;border-color:#93c5fd}.item-card button{border:0;border-radius:12px;padding:8px;background:#3264df;color:#fff;font-weight:900}.item-card.on button{background:#22c55e}@media(max-width:600px){.item-grid{grid-template-columns:1fr}.item-shop{padding:14px}}
 `;
 document.head.appendChild(style);
@@ -24,7 +24,10 @@ window.fetch = async (...args) => {
   if (url.includes('/rpc/get_student_home') || url.includes('/rpc/save_mission_result') || url.includes('/rpc/login_student')) {
     try {
       const data = await response.clone().json();
-      if (data && data.status) localStorage.setItem(STATUS_KEY, JSON.stringify(data.status));
+      if (data && data.status) {
+        localStorage.setItem(STATUS_KEY, JSON.stringify(data.status));
+        checkBadgeAutoEarn(data.status);
+      }
     } catch {}
   }
   return response;
@@ -34,10 +37,30 @@ function readItems(){
   try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v : []; }
   catch { return []; }
 }
-function saveItems(ids){ localStorage.setItem(KEY, JSON.stringify(ids.slice(0, 3))); }
+function saveItems(ids){ localStorage.setItem(KEY, JSON.stringify([...new Set(ids)].slice(0, 3))); }
 function readStatus(){
   try { return JSON.parse(localStorage.getItem(STATUS_KEY) || '{}') || {}; }
   catch { return {}; }
+}
+function totalPracticeCount(status = readStatus()){
+  const areaTotal = Number(status.s_count || status.S || 0)
+    + Number(status.a_count || status.A || 0)
+    + Number(status.i_count || status.I || 0)
+    + Number(status.l_count || status.L || 0);
+  return Number(status.total_count || status.mission_count || status.completed_count || 0) || areaTotal;
+}
+function checkBadgeAutoEarn(status = readStatus()){
+  const total = totalPracticeCount(status);
+  if (total < 10) return false;
+  const ids = readItems();
+  if (ids.includes('badge')) return false;
+  saveItems([...ids, 'badge']);
+  localStorage.setItem('SAIL_BADGE_EARNED_NOTICE_V1', '1');
+  return true;
+}
+function badgeNoticeHtml(){
+  if (localStorage.getItem('SAIL_BADGE_EARNED_NOTICE_V1') !== '1') return '';
+  return '<div class="item-earn">축하합니다. 총 실천 10회를 달성하여 시민 배지를 자동 획득했어요.</div>';
 }
 function weakArea(){
   const s = readStatus();
@@ -50,18 +73,20 @@ function weakArea(){
   return rows.sort((a,b) => a.value - b.value)[0];
 }
 function selectedItems(){
+  checkBadgeAutoEarn();
   const ids = readItems();
-  const base = ids.length ? ids : ['compass', 'badge'];
+  const base = ids.length ? ids : ['compass'];
   return base.map(id => ITEMS.find(item => item.id === id)).filter(Boolean);
 }
 function hasCompass(){ return selectedItems().some(item => item.id === 'compass'); }
 function dockHtml(){
   const guide = weakArea();
-  return `<div class="item-dock" data-item-dock><div class="item-title">장착 아이템 <small>최대 3개</small></div><div class="item-row">${selectedItems().map(item => `<span class="item-chip"><b class="item-mark">${item.icon}</b>${item.name}</span>`).join('')}</div>${hasCompass() ? `<div class="item-guide">나침반 안내: 오늘은 ${guide.label} 영역을 보완하면 좋아요. ${guide.msg}</div>` : ''}</div>`;
+  return `<div class="item-dock" data-item-dock><div class="item-title">장착 아이템 <small>최대 3개</small></div><div class="item-row">${selectedItems().map(item => `<span class="item-chip"><b class="item-mark">${item.icon}</b>${item.name}</span>`).join('')}</div>${hasCompass() ? `<div class="item-guide">나침반 안내: 오늘은 ${guide.label} 영역을 보완하면 좋아요. ${guide.msg}</div>` : ''}${badgeNoticeHtml()}</div>`;
 }
 function shopHtml(){
+  checkBadgeAutoEarn();
   const ids = readItems();
-  return `<section class="item-shop" data-item-shop><h2>아이템 보관함</h2><p>배와 함께 표시할 아이템을 고릅니다. 최대 3개까지 장착됩니다.</p><div class="item-grid">${ITEMS.map(item => { const on = ids.includes(item.id) || (!ids.length && ['compass','badge'].includes(item.id)); return `<article class="item-card ${on ? 'on' : ''}" data-item-id="${item.id}"><strong><span class="item-mark">${item.icon}</span> ${item.name}</strong><button type="button">${on ? '장착 중' : '장착하기'}</button></article>`; }).join('')}</div></section>`;
+  return `<section class="item-shop" data-item-shop><h2>아이템 보관함</h2><p>배와 함께 표시할 아이템을 고릅니다. 시민 배지는 총 실천 10회 달성 시 자동 획득됩니다.</p><div class="item-grid">${ITEMS.map(item => { const on = ids.includes(item.id) || (!ids.length && item.id === 'compass'); const locked = item.id === 'badge' && totalPracticeCount() < 10; return `<article class="item-card ${on ? 'on' : ''}" data-item-id="${item.id}" ${locked ? 'data-locked="1"' : ''}><strong><span class="item-mark">${item.icon}</span> ${item.name}</strong><small>${locked ? '총 실천 10회 달성 후 획득' : ''}</small><button type="button">${locked ? '잠김' : (on ? '장착 중' : '장착하기')}</button></article>`; }).join('')}</div></section>`;
 }
 function refresh(){
   document.querySelectorAll('[data-item-dock]').forEach(el => el.outerHTML = dockHtml());
@@ -69,6 +94,7 @@ function refresh(){
   if (shop) shop.outerHTML = shopHtml();
 }
 function patch(){
+  checkBadgeAutoEarn();
   const home = document.querySelector('.home-title-card');
   if (home && !home.querySelector('[data-item-dock]')) home.insertAdjacentHTML('beforeend', dockHtml());
   const profile = document.querySelector('.profile');
@@ -78,7 +104,7 @@ function patch(){
 }
 document.addEventListener('click', event => {
   const card = event.target.closest && event.target.closest('[data-item-id]');
-  if (!card) return;
+  if (!card || card.dataset.locked === '1') return;
   const id = card.dataset.itemId;
   let ids = readItems();
   ids = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id].slice(-3);
