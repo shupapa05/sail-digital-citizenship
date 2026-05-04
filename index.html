@@ -10,8 +10,8 @@
     <main id="app" class="app-shell"></main>
 
     <script>
-      // 예전 버전에서 남은 교사용 고정 localStorage를 1회 정리합니다.
-      // 이후 교사 개인코드로 다시 로그인하면 정상적으로 교사용 대시보드로 이동합니다.
+      // 예전 버전에서 남은 교사용 고정 저장값을 1회 정리합니다.
+      // 이후 교사 개인코드로 다시 로그인하면 교사용 대시보드로 이동합니다.
       if (localStorage.getItem('SAIL_STORAGE_MIGRATION_V2') !== 'done') {
         localStorage.removeItem('SAIL_ROLE');
         localStorage.removeItem('SAIL_CLASS_CODE');
@@ -19,6 +19,47 @@
         localStorage.removeItem('SAIL_LOGIN_CODE');
         localStorage.setItem('SAIL_STORAGE_MIGRATION_V2', 'done');
       }
+
+      // 교사용 대시보드에는 학생용 하단 메뉴가 없으므로 로그아웃 버튼을 별도로 주입합니다.
+      function addTeacherLogoutButton() {
+        const app = document.querySelector('#app');
+        if (!app) return;
+
+        const dashboard = app.querySelector('.teacher-dashboard');
+        if (!dashboard) return;
+        if (dashboard.querySelector('[data-teacher-logout]')) return;
+
+        const top = dashboard.querySelector('.teacher-top');
+        if (!top) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = '로그아웃';
+        button.setAttribute('data-teacher-logout', '1');
+        button.style.background = '#64748b';
+        button.style.color = '#fff';
+        button.style.border = '0';
+        button.style.borderRadius = '14px';
+        button.style.padding = '10px 14px';
+        button.style.fontWeight = '900';
+        button.style.marginLeft = '8px';
+        button.onclick = function () {
+          localStorage.removeItem('SAIL_ROLE');
+          localStorage.removeItem('SAIL_CLASS_CODE');
+          localStorage.removeItem('SAIL_STUDENT_ID');
+          localStorage.removeItem('SAIL_LOGIN_CODE');
+          location.reload();
+        };
+
+        top.appendChild(button);
+      }
+
+      new MutationObserver(addTeacherLogoutButton).observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      setInterval(addTeacherLogoutButton, 700);
+      setTimeout(addTeacherLogoutButton, 200);
     </script>
 
     <script type="module" src="./src/mission-stage-patch.js"></script>
