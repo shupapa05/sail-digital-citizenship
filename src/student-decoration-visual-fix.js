@@ -4,18 +4,30 @@ const LABEL_FIXES = [
   ['현재 장식: 기본 바다', '현재 장식: 장식 없음']
 ];
 
+let scheduled = false;
+
 injectDecorationVisualFix();
 fixDecorationText();
-new MutationObserver(fixDecorationText).observe(document.body, { childList: true, subtree: true });
+new MutationObserver(scheduleFixDecorationText).observe(document.body, { childList: true, subtree: true });
+
+function scheduleFixDecorationText() {
+  if (scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(() => {
+    scheduled = false;
+    fixDecorationText();
+  });
+}
 
 function fixDecorationText() {
   const targets = document.querySelectorAll('.decor-card h3, .decor-card p, .ship-decoration-caption');
   targets.forEach(node => {
-    let text = node.textContent || '';
+    const original = node.textContent || '';
+    let text = original;
     LABEL_FIXES.forEach(([from, to]) => {
       text = text.replaceAll(from, to);
     });
-    node.textContent = text;
+    if (text !== original) node.textContent = text;
   });
 }
 
