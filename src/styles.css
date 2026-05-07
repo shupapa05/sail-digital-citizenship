@@ -113,8 +113,8 @@ input, select, textarea { width: 100%; border: 1px solid var(--line); border-rad
 .bar-row strong { color: var(--ink); text-align: right; }
 .bar-row div { height: 12px; background: #e9f0ee; border-radius: 999px; overflow: hidden; }
 .bar-row i { display: block; height: 100%; background: var(--brand); }
-.bottom-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; max-width: 620px; margin: 18px auto 0; padding: 0 0 4px; }
-.bottom-nav button { width: 100%; background: linear-gradient(180deg, #5886f4, #3264df); color: white; border: 0; border-radius: 14px; min-height: 58px; font-size: 20px; box-shadow: 0 12px 24px rgb(48 92 210 / 18%); }
+.bottom-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; max-width: 760px; margin: 18px auto 0; padding: 0 0 4px; }
+.bottom-nav button { width: 100%; background: linear-gradient(180deg, #5886f4, #3264df); color: white; border: 0; border-radius: 14px; min-height: 58px; font-size: 18px; box-shadow: 0 12px 24px rgb(48 92 210 / 18%); }
 .bottom-nav button.active { background: linear-gradient(180deg, #2f63ea, #1d4ed8); }
 
 .teacher-head { align-items: center; }
@@ -134,7 +134,7 @@ th { color: var(--muted); font-size: 13px; }
   .app-shell { padding: 12px; }
   .hero, .teacher-head, .section-head, .login-form, .teacher-search { display: grid; align-items: stretch; }
   .score-grid, .teacher-stats, .menu-grid, .mission-grid, .dashboard-grid, .sail-grid, .ship-profile, .growth-grid, .home-menu-grid { grid-template-columns: 1fr; }
-  .bottom-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; max-width: 100%; }
+  .bottom-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 100%; }
   .bottom-nav button { min-height: 52px; font-size: 16px; padding: 8px 6px; }
   .home-menu-grid button { min-height: 72px; }
 }
