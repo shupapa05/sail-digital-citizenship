@@ -1,8 +1,8 @@
 const shipCss = `
 .ship-shop-toggle-wrap{display:flex;justify-content:center;margin:16px 0 6px}
 .ship-shop-toggle{min-width:220px;background:linear-gradient(180deg,#5886f4,#3264df)!important;color:#fff!important;border:0!important;border-radius:16px!important;box-shadow:0 12px 24px rgb(48 92 210 / 18%);font-size:20px;font-weight:950}
-.ship-shop{display:none;margin-top:16px;background:#fff;border:1px solid #d9e5f4;border-radius:22px;padding:20px;box-shadow:0 14px 30px rgb(28 80 150 / 10%)}
-.ship-shop.open{display:block}
+.ship-shop{display:block;margin-top:16px;background:#fff;border:1px solid #d9e5f4;border-radius:22px;padding:20px;box-shadow:0 14px 30px rgb(28 80 150 / 10%)}
+.ship-shop.closed{display:none}
 .ship-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .ship-card{background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:14px;text-align:center}
 .shop-ship-image{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:14px}
@@ -19,17 +19,17 @@ function prepareShipShop() {
   if (!shop || !profile || shop.dataset.toggleReady === '1') return;
 
   shop.dataset.toggleReady = '1';
-  shop.classList.remove('open');
+  shop.classList.remove('closed');
 
   const wrap = document.createElement('div');
   wrap.className = 'ship-shop-toggle-wrap';
-  wrap.innerHTML = '<button type="button" class="ship-shop-toggle">배 구매/선택</button>';
+  wrap.innerHTML = '<button type="button" class="ship-shop-toggle">배 상점 접기</button>';
   profile.insertAdjacentElement('afterend', wrap);
 
   wrap.querySelector('button').addEventListener('click', () => {
-    shop.classList.toggle('open');
-    wrap.querySelector('button').textContent = shop.classList.contains('open') ? '배 상점 닫기' : '배 구매/선택';
-    if (shop.classList.contains('open')) shop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    shop.classList.toggle('closed');
+    wrap.querySelector('button').textContent = shop.classList.contains('closed') ? '배 구매/선택 열기' : '배 상점 접기';
+    if (!shop.classList.contains('closed')) shop.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
