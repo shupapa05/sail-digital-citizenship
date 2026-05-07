@@ -140,6 +140,20 @@ export async function setEquippedShip(studentId, shipId) {
   });
 }
 
+export async function buyDecoration(studentId, decorationId) {
+  return request('/rest/v1/rpc/buy_decoration', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_decoration_id: decorationId })
+  });
+}
+
+export async function setEquippedDecoration(studentId, decorationId) {
+  return request('/rest/v1/rpc/set_equipped_decoration', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_decoration_id: decorationId })
+  });
+}
+
 export async function uploadProofPhoto(studentId, file) {
   if (!file) return { url: '', fileId: '' };
 
