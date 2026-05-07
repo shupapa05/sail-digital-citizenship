@@ -472,14 +472,14 @@ function renderStats() {
         </div>
       </div>
     </section>
-    ${bottomNav('home')}
+    ${bottomNav('stats')}
   `);
   bindNav();
 }
 
 function bottomNav(active) {
   const item = (id, label) => `<button class="${active === id ? 'active' : ''}" data-nav="${id}">${label}</button>`;
-  return `<nav class="bottom-nav">${item('home', '홈')}${item('missions', '미션')}${item('records', '기록')}${item('info', '내 정보')}<button data-nav="logout">나가기</button></nav>`;
+  return `<nav class="bottom-nav">${item('home', '홈')}${item('missions', '미션')}${item('records', '기록')}${item('info', '내 정보')}${item('stats', '통계')}<button data-nav="logout">나가기</button></nav>`;
 }
 
 function bindNav() {
