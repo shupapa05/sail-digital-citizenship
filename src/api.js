@@ -33,6 +33,11 @@ async function request(path, options = {}) {
   return data;
 }
 
+function normalizeTeacherRole(role) {
+  const value = String(role || '').toLowerCase();
+  return value === 'admin' || value === '관리자' ? 'admin' : 'teacher';
+}
+
 export async function loginStudent(loginCode) {
   try {
     const teachers = await request(
@@ -42,17 +47,20 @@ export async function loginStudent(loginCode) {
 
     if (Array.isArray(teachers) && teachers.length) {
       const teacher = teachers[0];
+      const role = normalizeTeacherRole(teacher.role);
+      const classCode = teacher.class_code || '';
 
-      localStorage.setItem('SAIL_ROLE', 'teacher');
-      localStorage.setItem('SAIL_CLASS_CODE', teacher.class_code || '');
+      localStorage.setItem('SAIL_ROLE', role);
+      localStorage.setItem('SAIL_CLASS_CODE', classCode);
+      localStorage.setItem('SAIL_TEACHER_CLASS_CODE', classCode);
 
       return {
         student: {
           student_id: teacher.teacher_id,
           name: teacher.name,
           login_code: teacher.login_code,
-          class_code: teacher.class_code,
-          role: 'teacher',
+          class_code: classCode,
+          role,
           is_teacher: true
         },
         status: {
