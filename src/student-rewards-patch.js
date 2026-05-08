@@ -187,6 +187,12 @@ function decorateShipPreview(profile, status) {
   if (!stage) return;
 
   stage.classList.add('reward-ship-stage');
+
+  const signature = earnedBadges(status).map(badge => `${badge.className}:${badge.earned ? 1 : 0}`).join('|');
+  const hasSlots = Boolean(stage.querySelector('.ship-badge-slots') && stage.querySelector('.ship-badge-caption'));
+  if (stage.dataset.badgeSignature === signature && hasSlots) return;
+
+  stage.dataset.badgeSignature = signature;
   stage.querySelector('.ship-badge-slots')?.remove();
   stage.querySelector('.ship-badge-caption')?.remove();
 
