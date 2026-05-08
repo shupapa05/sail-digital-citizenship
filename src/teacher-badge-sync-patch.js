@@ -6,12 +6,7 @@ if (!window[PATCH_KEY]) {
   window[PATCH_KEY] = true;
 
   const BADGE_MAX = 20;
-  const AREAS = [
-    { code: 'S', label: '안전' },
-    { code: 'A', label: '책임' },
-    { code: 'I', label: '윤리' },
-    { code: 'L', label: '소통' }
-  ];
+  const EMPTY_COUNTS = { S: 0, A: 0, I: 0, L: 0 };
 
   const headers = {
     apikey: SUPABASE_ANON_KEY,
@@ -23,6 +18,7 @@ if (!window[PATCH_KEY]) {
   const badgeCache = new Map();
   let syncRunning = false;
   let syncQueued = false;
+  let lastIndexClassCode = '';
 
   function n(value) {
     const parsed = Number(value);
@@ -37,7 +33,22 @@ if (!window[PATCH_KEY]) {
     return normalizeText(value).replace(/\s+/g, '');
   }
 
+  function currentClassCode() {
+    return (
+      normalizeText(localStorage.getItem('SAIL_TEACHER_CLASS_CODE')) ||
+      normalizeText(localStorage.getItem('SAIL_CLASS_CODE')) ||
+      'ALL'
+    );
+  }
+
   function normalizeDashboard(raw) {
+    if (Array.isArray(raw)) return raw[0] || {};
+    if (raw?.data && Array.isArray(raw.data)) return raw.data[0] || {};
+    if (raw?.data && typeof raw.data === 'object') return raw.data;
+    return raw || {};
+  }
+
+  function normalizeHome(raw) {
     if (Array.isArray(raw)) return raw[0] || {};
     if (raw?.data && Array.isArray(raw.data)) return raw.data[0] || {};
     if (raw?.data && typeof raw.data === 'object') return raw.data;
@@ -59,6 +70,24 @@ if (!window[PATCH_KEY]) {
 
   function getStudentId(row) {
     return normalizeText(row?.student_id || row?.studentId || row?.id || row?.user_id || row?.userId || '');
+  }
+
+  function cloneCounts(counts) {
+    return {
+      S: n(counts?.S),
+      A: n(counts?.A),
+      I: n(counts?.I),
+      L: n(counts?.L)
+    };
+  }
+
+  function countsFromStatus(status) {
+    return {
+      S: n(status?.s_count),
+      A: n(status?.a_count),
+      I: n(status?.i_count),
+      L: n(status?.l_count)
+    };
   }
 
   async function fetchJson(url, options) {
@@ -89,15 +118,14 @@ if (!window[PATCH_KEY]) {
     });
   }
 
-  async function buildStudentIndex() {
+  async function buildStudentIndex(force = false) {
+    const classCode = currentClassCode();
+    if (!force && studentByName.size && lastIndexClassCode === classCode) return;
+
     studentByName.clear();
+    lastIndexClassCode = classCode;
 
-    const classCode =
-      normalizeText(localStorage.getItem('SAIL_TEACHER_CLASS_CODE')) ||
-      normalizeText(localStorage.getItem('SAIL_CLASS_CODE')) ||
-      'ALL';
-
-    const raw = await rpc('get_teacher_dashboard', { p_class_code: classCode });
+    const raw = await rpc('get_teacher_dashboard', { p_class_code: classCode || 'ALL' });
     const data = normalizeDashboard(raw);
     const students = extractStudents(data);
 
@@ -111,55 +139,25 @@ if (!window[PATCH_KEY]) {
     });
   }
 
-  function areaCodeOf(item) {
-    const raw = String(item?.mission_type || item?.type || item?.missionType || '').toUpperCase();
-    if (raw === 'S' || raw === 'A' || raw === 'I' || raw === 'L') return raw;
-    return '';
-  }
+  async function fetchBadgeCounts(studentId) {
+    const key = normalizeText(studentId);
+    if (!key) return cloneCounts(EMPTY_COUNTS);
 
-  function countItems(items) {
-    const counts = { S: 0, A: 0, I: 0, L: 0 };
+    if (badgeCache.has(key)) return cloneCounts(badgeCache.get(key));
 
-    (items || []).forEach(item => {
-      const code = areaCodeOf(item);
-      if (!code) return;
-      counts[code] += 1;
-    });
+    let counts = cloneCounts(EMPTY_COUNTS);
 
-    return counts;
-  }
-
-  async function fetchYearCounts(studentId) {
-    if (!studentId) return { S: 0, A: 0, I: 0, L: 0 };
-
-    if (badgeCache.has(studentId)) return badgeCache.get(studentId);
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const monthMax = now.getMonth() + 1;
-
-    const total = { S: 0, A: 0, I: 0, L: 0 };
-
-    for (let month = 1; month <= monthMax; month += 1) {
-      try {
-        const history = await rpc('get_monthly_history', {
-          p_student_id: studentId,
-          p_year: year,
-          p_month: month
-        });
-
-        const monthly = countItems(Array.isArray(history?.items) ? history.items : []);
-        total.S += monthly.S;
-        total.A += monthly.A;
-        total.I += monthly.I;
-        total.L += monthly.L;
-      } catch {
-        // Ignore month-level failures and continue.
-      }
+    try {
+      const homeRaw = await rpc('get_student_home', { p_student_id: key });
+      const home = normalizeHome(homeRaw);
+      const status = home?.status || home?.student_status || {};
+      counts = countsFromStatus(status);
+    } catch {
+      counts = cloneCounts(EMPTY_COUNTS);
     }
 
-    badgeCache.set(studentId, total);
-    return total;
+    badgeCache.set(key, counts);
+    return cloneCounts(counts);
   }
 
   function getBadgeCard() {
@@ -217,11 +215,11 @@ if (!window[PATCH_KEY]) {
         const studentId = getStudentId(student);
         if (!studentId) continue;
 
-        const counts = await fetchYearCounts(studentId);
+        const counts = await fetchBadgeCounts(studentId);
         updateRowCells(cells, counts);
       }
     } catch {
-      // Silent to avoid blocking teacher screen.
+      // Keep teacher screen stable even if sync fails.
     } finally {
       syncRunning = false;
       if (syncQueued) {
@@ -232,7 +230,7 @@ if (!window[PATCH_KEY]) {
   }
 
   let timerId = 0;
-  function scheduleSync(delay = 400) {
+  function scheduleSync(delay = 350) {
     if (timerId) clearTimeout(timerId);
     timerId = setTimeout(() => {
       timerId = 0;
@@ -240,11 +238,14 @@ if (!window[PATCH_KEY]) {
     }, delay);
   }
 
-  new MutationObserver(() => scheduleSync(300)).observe(document.body, {
+  new MutationObserver(() => scheduleSync(250)).observe(document.body, {
     childList: true,
     subtree: true
   });
 
-  scheduleSync(600);
-  setInterval(() => scheduleSync(0), 15000);
+  scheduleSync(500);
+  setInterval(() => {
+    badgeCache.clear();
+    scheduleSync(0);
+  }, 15000);
 }
