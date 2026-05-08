@@ -38,6 +38,45 @@ function normalizeTeacherRole(role) {
   return value === 'admin' || value === '관리자' ? 'admin' : 'teacher';
 }
 
+function isSchemaCacheError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('could not find the function') || message.includes('schema cache') || message.includes('pgrst202');
+}
+
+function withSchemaReloadHint(message, sqlFileName) {
+  const text = String(message || '').trim() || '요청을 처리하지 못했습니다.';
+  const lower = text.toLowerCase();
+  if (!lower.includes('could not find the function') && !lower.includes('schema cache') && !lower.includes('pgrst202')) {
+    return text;
+  }
+
+  return `${text}\n\nSupabase SQL Editor에서 아래를 1회 실행해 주세요:\nNOTIFY pgrst, 'reload schema';\n\n같은 오류가 계속되면 저장소의 ${sqlFileName} 파일을 실행해 RPC 함수를 다시 생성해 주세요.`;
+}
+
+async function callRpcWithFallback(path, payloadCandidates, sqlFileName) {
+  let lastError = null;
+
+  for (let i = 0; i < payloadCandidates.length; i += 1) {
+    try {
+      return await request(path, {
+        method: 'POST',
+        body: JSON.stringify(payloadCandidates[i])
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isSchemaCacheError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError) {
+    throw new Error(withSchemaReloadHint(lastError.message, sqlFileName));
+  }
+
+  throw new Error('요청을 처리하지 못했습니다.');
+}
+
 export async function loginStudent(loginCode) {
   try {
     const teachers = await request(
@@ -127,17 +166,21 @@ export async function getShips() {
 }
 
 export async function buyShip(studentId, shipId) {
-  return request('/rest/v1/rpc/buy_ship', {
-    method: 'POST',
-    body: JSON.stringify({ p_student_id: studentId, p_ship_id: shipId })
-  });
+  return callRpcWithFallback('/rest/v1/rpc/buy_ship', [
+    { p_student_id: studentId, p_ship_id: shipId },
+    { p_ship_id: shipId, p_student_id: studentId },
+    { student_id: studentId, ship_id: shipId },
+    { ship_id: shipId, student_id: studentId }
+  ], 'supabase/ship-purchase-fix.sql');
 }
 
 export async function setEquippedShip(studentId, shipId) {
-  return request('/rest/v1/rpc/set_equipped_ship', {
-    method: 'POST',
-    body: JSON.stringify({ p_student_id: studentId, p_ship_id: shipId })
-  });
+  return callRpcWithFallback('/rest/v1/rpc/set_equipped_ship', [
+    { p_student_id: studentId, p_ship_id: shipId },
+    { p_ship_id: shipId, p_student_id: studentId },
+    { student_id: studentId, ship_id: shipId },
+    { ship_id: shipId, student_id: studentId }
+  ], 'supabase/ship-purchase-fix.sql');
 }
 
 export async function buyDecoration(studentId, decorationId) {
