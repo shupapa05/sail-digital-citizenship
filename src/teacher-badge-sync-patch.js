@@ -247,5 +247,5 @@ if (!window[PATCH_KEY]) {
   setInterval(() => {
     badgeCache.clear();
     scheduleSync(0);
-  }, 15000);
+  }, 60000);
 }
