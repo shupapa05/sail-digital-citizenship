@@ -268,7 +268,7 @@ function badgeGrid(status) {
     <div class="badge-grid">
       ${earnedBadges(status).map(badge => `
         <article class="badge-card ${badge.className} tier-${badge.level}">
-          <div class="badge-mark tier-${badge.level}">${badge.icon}</div>
+          <div class="badge-mark ${badge.className} tier-${badge.level}">${badge.icon}</div>
           <div>
             <h3>${esc(badge.label)} <span class="badge-level-name">${badge.levelName}</span></h3>
             <p>${esc(badge.help)}</p>
@@ -339,6 +339,16 @@ function injectRewardStyles() {
     .tier-3{outline:2px solid #fde68a;box-shadow:0 10px 24px rgb(15 23 42 / 22%),0 0 16px rgba(250,204,21,.35)}
     .tier-4{outline:2px solid #f8fafc;box-shadow:0 12px 28px rgb(15 23 42 / 28%),0 0 18px rgba(255,255,255,.45)}
     .tier-4.badge-mark,.tier-4.ship-badge-slot,.tier-4.mini-badge{background:conic-gradient(from 140deg,#f8fafc,#fde68a,#f8fafc) !important;color:#334155 !important}
+
+    .mini-badge.tier-1,.ship-badge-slot.tier-1,.badge-mark.tier-1{filter:saturate(.72) brightness(.92)}
+    .mini-badge.tier-2,.ship-badge-slot.tier-2,.badge-mark.tier-2{filter:saturate(1.08) brightness(1.03)}
+    .mini-badge.tier-3,.ship-badge-slot.tier-3,.badge-mark.tier-3{filter:saturate(1.2) brightness(1.1)}
+
+    .badge-card.tier-0 .badge-level-name{background:#e2e8f0;color:#64748b}
+    .badge-card.tier-1 .badge-level-name{background:#fef3c7;color:#92400e}
+    .badge-card.tier-2 .badge-level-name{background:#dbeafe;color:#1d4ed8}
+    .badge-card.tier-3 .badge-level-name{background:#fef9c3;color:#854d0e}
+    .badge-card.tier-4 .badge-level-name{background:#ede9fe;color:#5b21b6}
 
     @media(max-width:720px){
       .badge-grid{grid-template-columns:1fr}
