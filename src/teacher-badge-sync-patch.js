@@ -1,3 +1,5 @@
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
+
 const PATCH_KEY = '__SAIL_TEACHER_BADGE_SYNC_PATCHED__';
 
 if (!window[PATCH_KEY]) {
@@ -12,14 +14,18 @@ if (!window[PATCH_KEY]) {
   ];
 
   const ALIAS_BY_AREA = {
-    S: ['safe', 'safety'],
-    A: ['accountable', 'accountability', 'responsible', 'responsibility'],
-    I: ['ethic', 'ethics', 'ethical', 'integrity'],
-    L: ['listen', 'listening', 'communication', 'communicate']
+    S: ['safe', 'safety', 'security', '안전'],
+    A: ['accountable', 'accountability', 'responsible', 'responsibility', '책임'],
+    I: ['ethic', 'ethics', 'ethical', 'integrity', '윤리'],
+    L: ['listen', 'listening', 'communication', 'communicate', '소통']
   };
 
-  let studentRows = [];
-  let studentMap = new Map();
+  const statusCache = new Map();
+  const statusPending = new Set();
+
+  let dashboardData = {};
+  let primaryStudents = [];
+  let namedCandidates = new Map();
   let rafId = 0;
 
   const originalFetch = window.fetch?.bind(window);
@@ -31,10 +37,10 @@ if (!window[PATCH_KEY]) {
       if (url.includes('/rpc/get_teacher_dashboard')) {
         try {
           const json = await response.clone().json();
-          updateStudentIndex(json);
+          updateDashboardIndex(json);
           scheduleSync();
         } catch {
-          // Keep original response even when parsing fails.
+          // Keep original response when parsing fails.
         }
       }
 
@@ -74,32 +80,66 @@ if (!window[PATCH_KEY]) {
     return normalizeKey(value).replace(/\s+/g, '');
   }
 
-  function updateStudentIndex(raw) {
-    const data = normalizeDashboard(raw);
-    const rows = extractStudents(data);
+  function getStudentName(row) {
+    return normalizeKey(row?.name || row?.student_name || row?.studentName || row?.student || '');
+  }
 
-    studentRows = Array.isArray(rows) ? rows : [];
-    studentMap = new Map();
+  function getStudentId(row) {
+    return normalizeKey(row?.student_id || row?.studentId || row?.id || row?.user_id || row?.userId || '');
+  }
 
-    studentRows.forEach(row => {
-      const keys = [
-        normalizeKey(row?.student_id),
-        normalizeKey(row?.studentId),
-        normalizeKey(row?.id),
-        normalizeKey(row?.user_id),
-        normalizeKey(row?.userId),
-        normalizeKey(row?.login_code),
-        normalizeKey(row?.loginCode),
-        normalizeKey(row?.name),
-        normalizeKey(row?.student_name),
-        normalizeKey(row?.studentName),
-        compactName(row?.name || row?.student_name || row?.studentName)
-      ].filter(Boolean);
+  function getLoginCode(row) {
+    return normalizeKey(row?.login_code || row?.loginCode || row?.code || row?.student_code || row?.studentCode || '');
+  }
 
-      keys.forEach(key => {
-        if (!studentMap.has(key)) studentMap.set(key, row);
-      });
+  function pushCandidate(map, key, row) {
+    if (!key || !row) return;
+    const list = map.get(key) || [];
+    if (!list.includes(row)) list.push(row);
+    map.set(key, list);
+  }
+
+  function collectObjectsDeep(value, out, depth = 0) {
+    if (!value || depth > 3) return;
+
+    if (Array.isArray(value)) {
+      value.forEach(item => collectObjectsDeep(item, out, depth + 1));
+      return;
+    }
+
+    if (typeof value !== 'object') return;
+
+    out.push(value);
+
+    Object.values(value).forEach(next => {
+      if (next && typeof next === 'object') {
+        collectObjectsDeep(next, out, depth + 1);
+      }
     });
+  }
+
+  function updateDashboardIndex(raw) {
+    dashboardData = normalizeDashboard(raw);
+    primaryStudents = extractStudents(dashboardData);
+
+    const allObjects = [];
+    collectObjectsDeep(dashboardData, allObjects);
+
+    const nextCandidates = new Map();
+
+    allObjects.forEach(obj => {
+      const name = getStudentName(obj);
+      if (!name) return;
+
+      const compact = compactName(name);
+      pushCandidate(nextCandidates, name, obj);
+      pushCandidate(nextCandidates, compact, obj);
+
+      const id = getStudentId(obj);
+      if (id) pushCandidate(nextCandidates, id, obj);
+    });
+
+    namedCandidates = nextCandidates;
   }
 
   function toFiniteNumber(value) {
@@ -107,72 +147,116 @@ if (!window[PATCH_KEY]) {
     return Number.isFinite(parsed) ? parsed : NaN;
   }
 
-  function pickNumber(values) {
+  function pickFirstNumber(values) {
     for (const value of values) {
       const parsed = toFiniteNumber(value);
       if (!Number.isNaN(parsed)) return parsed;
     }
-    return 0;
+    return NaN;
   }
 
-  function sourcesOf(row) {
-    return [
-      row,
-      row?.status,
-      row?.student_status,
-      row?.studentStatus,
-      row?.badge_status,
-      row?.badgeStatus,
-      row?.badge_counts,
-      row?.badgeCounts,
-      row?.badges,
-      row?.counts,
-      row?.metrics
-    ].filter(Boolean);
-  }
-
-  function countOf(row, areaCode) {
+  function countFromKnownKeys(source, areaCode) {
     const lower = areaCode.toLowerCase();
     const aliases = ALIAS_BY_AREA[areaCode] || [];
-    const candidates = [];
+    const keys = [
+      `${lower}_count`,
+      `${lower}Count`,
+      `${areaCode}_count`,
+      `${areaCode}Count`,
+      `${lower}_practice_count`,
+      `${lower}PracticeCount`,
+      `${lower}_total`,
+      `${lower}Total`,
+      lower,
+      areaCode
+    ];
 
-    sourcesOf(row).forEach(source => {
-      candidates.push(
-        source?.[`${lower}_count`],
-        source?.[`${lower}Count`],
-        source?.[`${areaCode}_count`],
-        source?.[`${areaCode}Count`],
-        source?.[lower],
-        source?.[areaCode],
-        source?.[`${lower}_practice_count`],
-        source?.[`${lower}PracticeCount`],
-        source?.[`${lower}_total`],
-        source?.[`${lower}Total`]
+    aliases.forEach(alias => {
+      keys.push(
+        `${alias}_count`,
+        `${alias}Count`,
+        `${alias}_practice_count`,
+        `${alias}PracticeCount`,
+        `${alias}_total`,
+        `${alias}Total`,
+        alias
       );
-
-      aliases.forEach(alias => {
-        candidates.push(
-          source?.[`${alias}_count`],
-          source?.[`${alias}Count`],
-          source?.[alias],
-          source?.[`${alias}_total`],
-          source?.[`${alias}Total`]
-        );
-      });
     });
 
-    return Math.max(0, Math.round(pickNumber(candidates)));
+    const direct = pickFirstNumber(keys.map(key => source?.[key]));
+    if (!Number.isNaN(direct)) return direct;
+
+    const nested = source?.[lower] || source?.[areaCode];
+    if (nested && typeof nested === 'object') {
+      const nestedValue = pickFirstNumber([
+        nested?.count,
+        nested?.total,
+        nested?.value,
+        nested?.practice_count,
+        nested?.practiceCount
+      ]);
+      if (!Number.isNaN(nestedValue)) return nestedValue;
+    }
+
+    return NaN;
   }
 
-  function findStudentByName(name) {
-    const raw = normalizeKey(name);
-    if (!raw) return null;
+  function countFromFuzzyKeys(source, areaCode) {
+    if (!source || typeof source !== 'object') return NaN;
 
-    const compact = compactName(raw);
-    return studentMap.get(raw) || studentMap.get(compact) || studentRows.find(row => {
-      const rowName = row?.name || row?.student_name || row?.studentName || '';
-      return compactName(rowName) === compact;
-    }) || null;
+    const aliases = ALIAS_BY_AREA[areaCode] || [];
+    const keys = Object.keys(source);
+    const matched = [];
+
+    keys.forEach(key => {
+      const normalized = key.toLowerCase().replace(/\s+/g, '');
+      const hitArea = aliases.some(alias => normalized.includes(alias.toLowerCase()));
+      if (!hitArea) return;
+
+      if (
+        normalized.includes('count') ||
+        normalized.includes('total') ||
+        normalized.includes('practice') ||
+        normalized.includes('횟수') ||
+        normalized.includes('실천')
+      ) {
+        matched.push(source[key]);
+      }
+    });
+
+    return pickFirstNumber(matched);
+  }
+
+  function countOfCandidate(candidate, areaCode) {
+    const sources = [
+      candidate,
+      candidate?.status,
+      candidate?.student_status,
+      candidate?.studentStatus,
+      candidate?.badge_status,
+      candidate?.badgeStatus,
+      candidate?.badge_counts,
+      candidate?.badgeCounts,
+      candidate?.badges,
+      candidate?.counts,
+      candidate?.metrics,
+      candidate?.summary,
+      candidate?.progress,
+      candidate?.badge_progress,
+      candidate?.badgeProgress
+    ].filter(Boolean);
+
+    let best = 0;
+
+    sources.forEach(source => {
+      const known = countFromKnownKeys(source, areaCode);
+      if (!Number.isNaN(known)) best = Math.max(best, Math.max(0, Math.round(known)));
+
+      const fuzzy = countFromFuzzyKeys(source, areaCode);
+      if (!Number.isNaN(fuzzy)) best = Math.max(best, Math.max(0, Math.round(fuzzy)));
+    });
+
+    return best;
   }
 
   function badgeLevel(count) {
@@ -183,9 +267,134 @@ if (!window[PATCH_KEY]) {
     return 0;
   }
 
-  function syncBadgeTable() {
-    if (!studentRows.length) return;
+  function fetchJson(url, options) {
+    return fetch(url, options).then(async res => {
+      const text = await res.text();
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    });
+  }
 
+  async function fetchStatusByTable(studentId) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !studentId) return null;
+
+    const query = `${SUPABASE_URL}/rest/v1/student_status?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,s_count,a_count,i_count,l_count&limit=1`;
+    const headers = {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    };
+
+    const data = await fetchJson(query, { method: 'GET', headers });
+    if (Array.isArray(data) && data[0]) return data[0];
+    return null;
+  }
+
+  async function fetchStatusByRpc(studentId, loginCode = '') {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !studentId) return null;
+
+    const headers = {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    };
+
+    const payload = {
+      p_student_id: studentId,
+      p_login_code: loginCode
+    };
+
+    const data = await fetchJson(`${SUPABASE_URL}/rest/v1/rpc/get_student_home`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (data?.status && typeof data.status === 'object') return data.status;
+    return null;
+  }
+
+  async function ensureStudentStatus(primaryStudent, extraCandidates = []) {
+    const studentId = getStudentId(primaryStudent);
+    if (!studentId) return;
+    if (statusCache.has(studentId) || statusPending.has(studentId)) return;
+
+    statusPending.add(studentId);
+
+    try {
+      const byTable = await fetchStatusByTable(studentId);
+      if (byTable) {
+        statusCache.set(studentId, byTable);
+        return;
+      }
+
+      const loginCode = [
+        getLoginCode(primaryStudent),
+        ...extraCandidates.map(getLoginCode)
+      ].find(Boolean) || '';
+
+      const byRpc = await fetchStatusByRpc(studentId, loginCode);
+      if (byRpc) statusCache.set(studentId, byRpc);
+    } catch {
+      // Silent fallback: keep dashboard data only.
+    } finally {
+      statusPending.delete(studentId);
+      scheduleSync();
+    }
+  }
+
+  function findPrimaryStudentByName(name) {
+    const compact = compactName(name);
+    return primaryStudents.find(row => compactName(getStudentName(row)) === compact) || null;
+  }
+
+  function resolveCandidatesByName(name) {
+    const raw = normalizeKey(name);
+    const compact = compactName(raw);
+
+    const merged = [];
+    const push = row => {
+      if (row && !merged.includes(row)) merged.push(row);
+    };
+
+    (namedCandidates.get(raw) || []).forEach(push);
+    (namedCandidates.get(compact) || []).forEach(push);
+
+    const primary = findPrimaryStudentByName(raw);
+    if (primary) push(primary);
+
+    return merged;
+  }
+
+  function mergeCountsFromCandidates(candidates, primaryStudent) {
+    const counts = {
+      S: 0,
+      A: 0,
+      I: 0,
+      L: 0
+    };
+
+    const sources = [...candidates];
+
+    const studentId = getStudentId(primaryStudent);
+    if (studentId && statusCache.has(studentId)) {
+      sources.push(statusCache.get(studentId));
+    }
+
+    sources.forEach(candidate => {
+      AREAS.forEach(area => {
+        counts[area.code] = Math.max(counts[area.code], countOfCandidate(candidate, area.code));
+      });
+    });
+
+    return counts;
+  }
+
+  function syncBadgeTable() {
     const cards = Array.from(document.querySelectorAll('.teacher-card'));
     const badgeCard = cards.find(card => {
       const title = card.querySelector('h2')?.textContent || '';
@@ -199,25 +408,35 @@ if (!window[PATCH_KEY]) {
       if (cells.length < 6) return;
 
       const studentName = normalizeKey(cells[0].textContent);
-      const student = findStudentByName(studentName);
-      if (!student) return;
+      if (!studentName) return;
 
-      const counts = AREAS.map(area => ({
-        ...area,
-        value: countOf(student, area.code)
-      }));
+      const candidates = resolveCandidatesByName(studentName);
+      const primary = findPrimaryStudentByName(studentName) || candidates[0] || null;
+      if (!primary && !candidates.length) return;
 
-      cells[1].textContent = `${counts[0].value}/${BADGE_MAX}`;
-      cells[2].textContent = `${counts[1].value}/${BADGE_MAX}`;
-      cells[3].textContent = `${counts[2].value}/${BADGE_MAX}`;
-      cells[4].textContent = `${counts[3].value}/${BADGE_MAX}`;
+      const counts = mergeCountsFromCandidates(candidates, primary);
 
-      const weakest = [...counts].sort((a, b) => {
+      cells[1].textContent = `${counts.S}/${BADGE_MAX}`;
+      cells[2].textContent = `${counts.A}/${BADGE_MAX}`;
+      cells[3].textContent = `${counts.I}/${BADGE_MAX}`;
+      cells[4].textContent = `${counts.L}/${BADGE_MAX}`;
+
+      const weakest = [
+        { label: '안전', value: counts.S },
+        { label: '책임', value: counts.A },
+        { label: '윤리', value: counts.I },
+        { label: '소통', value: counts.L }
+      ].sort((a, b) => {
         if (a.value !== b.value) return a.value - b.value;
         return badgeLevel(a.value) - badgeLevel(b.value);
       })[0];
 
       cells[5].innerHTML = `<b>${weakest.label} ${weakest.value}/${BADGE_MAX}</b>`;
+
+      const totalNow = counts.S + counts.A + counts.I + counts.L;
+      if (totalNow === 0 && primary) {
+        ensureStudentStatus(primary, candidates);
+      }
     });
   }
 
