@@ -1,4 +1,5 @@
 import { getMonthlyHistory } from './api.js';
+import { STORAGE_BUCKET, SUPABASE_URL } from './config.js';
 
 const _fetchRecords = window.fetch.bind(window);
 window.__records = [];
@@ -31,11 +32,25 @@ function kind(x) { return String(x.mission_type || x.type || '').toLowerCase(); 
 function dateOf(x) { return x.date || x.mission_date || x.created_at || x.createdAt || ''; }
 function titleOf(x) { return x.mission_title || x.title || x.mission_id || '실천 기록'; }
 function noteOf(x) { return x.note || x.memo || x.choice1_text || x.choice2_text || x.choice3_text || ''; }
-function photoOf(x) { return x.photo_url || x.photoUrl || ''; }
 function safePhotoUrl(v) {
   const url = String(v || '').trim();
   if (!url) return '';
   return /^https?:\/\//i.test(url) ? url : '';
+}
+function publicStorageUrl(fileId) {
+  const path = String(fileId || '').trim();
+  if (!path || !SUPABASE_URL || !STORAGE_BUCKET) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+function photoOf(x) {
+  return safePhotoUrl(
+    x.photo_url ||
+    x.photoUrl ||
+    x.proof_photo_url ||
+    x.proofPhotoUrl ||
+    publicStorageUrl(x.photo_file_id || x.photoFileId || x.proof_photo_file_id || x.proofPhotoFileId)
+  );
 }
 function ymFromTitle() {
   const title = document.querySelector('.section-head h1')?.textContent || '';
@@ -84,7 +99,7 @@ function openDayDetail(day) {
   const rows = logs.length
     ? logs.map(log => {
       const note = String(noteOf(log) || '').trim();
-      const photo = safePhotoUrl(photoOf(log));
+      const photo = photoOf(log);
       const point = Number(log.total_point || 0);
       return `<div class="day-item"><b>${esc(titleOf(log))} · ${point}점</b><small class="day-item-note">${note ? esc(note) : '기록 내용 없음'}</small>${photo ? `<a class="day-photo-thumb" href="${esc(photo)}" target="_blank" rel="noopener noreferrer"><img src="${esc(photo)}" alt="기록 사진"></a><a class="day-photo-link" href="${esc(photo)}" target="_blank" rel="noopener noreferrer">사진 크게 보기</a>` : ''}</div>`;
     }).join('')
