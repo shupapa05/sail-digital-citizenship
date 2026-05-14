@@ -1,4 +1,5 @@
 import { getMonthlyHistory } from './api.js';
+import { STORAGE_BUCKET, SUPABASE_URL } from './config.js';
 
 const PATCH_KEY = '__SAIL_RECORDS_MEDIA_PATCHED__';
 
@@ -69,6 +70,23 @@ function safePhotoUrl(value) {
   return /^https?:\/\//i.test(url) ? url : '';
 }
 
+function publicStorageUrl(fileId) {
+  const path = String(fileId || '').trim();
+  if (!path || !SUPABASE_URL || !STORAGE_BUCKET) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+
+function photoUrlOf(item) {
+  return safePhotoUrl(
+    item?.photo_url ||
+    item?.photoUrl ||
+    item?.proof_photo_url ||
+    item?.proofPhotoUrl ||
+    publicStorageUrl(item?.photo_file_id || item?.photoFileId || item?.proof_photo_file_id || item?.proofPhotoFileId)
+  );
+}
+
 function missionDate(item) {
   return item?.date || item?.mission_date || item?.created_at || item?.createdAt || '';
 }
@@ -86,7 +104,7 @@ function renderItem(item) {
   const title = esc(missionTitle(item));
   const point = Number(item?.total_point || 0);
   const note = noteText(item);
-  const photo = safePhotoUrl(item?.photo_url || item?.photoUrl || '');
+  const photo = photoUrlOf(item);
 
   return `
     <article class="record-rich-item">
