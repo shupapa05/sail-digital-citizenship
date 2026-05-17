@@ -1,0 +1,108 @@
+<script>
+  // 전역 상태
+  let state = {
+    student: null,
+    today: null,
+    selectedMissionId: null
+  };
+
+  function login() {
+    const code = document.getElementById('codeInput').value.trim();
+    google.script.run.withSuccessHandler(res => {
+      if (!res.success) return setMsg(res.message);
+      state.student = res.student;
+      setMsg(`${state.student.name} 학생, 반가워요!`);
+      document.getElementById('gameSection').classList.remove('hidden');
+      loadTodayAndMissions();
+      refreshTickets();
+      loadCollection();
+    }).loginByCode(code);
+  }
+
+  function loadTodayAndMissions() {
+    google.script.run.withSuccessHandler(r => {
+      if (!r.success) return;
+      state.today = r.day;
+      document.getElementById('dayInfo').innerHTML = `
+        <b>${r.day.기념일명}</b><br>${r.day.설명}
+      `;
+      loadMissions(r.day.DAY_ID);
+    }).getTodayDayInfo();
+  }
+
+  function loadMissions(dayId) {
+    google.script.run.withSuccessHandler(r => {
+      const box = document.getElementById('missions');
+      box.innerHTML = '';
+      r.missions.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'big-btn';
+        btn.textContent = `${m.name} (+${m.rewardTicket} 티켓)`;
+        btn.onclick = () => {
+          state.selectedMissionId = m.missionId;
+          alert(`선택됨: ${m.name}`);
+        };
+        box.appendChild(btn);
+      });
+    }).getMissionsByDay(dayId);
+  }
+
+  function submitPractice() {
+    if (!state.selectedMissionId) return alert('먼저 미션을 선택해 주세요!');
+    const payload = {
+      studentId: state.student.studentId,
+      dayId: state.today.DAY_ID,
+      missionId: state.selectedMissionId,
+      comment: document.getElementById('comment').value.trim()
+    };
+
+    google.script.run.withSuccessHandler(r => {
+      if (!r.success) return alert(r.message);
+      alert(`티켓 ${r.ticketGained}장 획득!`);
+      refreshTickets();
+    }).submitPracticeLog(payload);
+  }
+
+  function refreshTickets() {
+    google.script.run.withSuccessHandler(r => {
+      document.getElementById('ticketInfo').textContent = `사용 가능 티켓: ${r.available}장`;
+    }).getStudentTicketCount(state.student.studentId);
+  }
+
+  function draw() {
+    if (!state.today) return;
+    google.script.run.withSuccessHandler(r => {
+      if (!r.success) return alert(r.message);
+      document.getElementById('drawResult').innerHTML = `
+        <p><b>획득!</b> ${r.character.VERSION_NAME}</p>
+        <p>기본 캐릭터: ${r.character.BASE_CHAR}</p>
+      `;
+      refreshTickets();
+      loadCollection();
+    }).drawCharacter(state.student.studentId, state.today.DAY_ID);
+  }
+
+  function loadCollection() {
+    google.script.run.withSuccessHandler(r => {
+      paintDex('bandiDex', r.bandi);
+      paintDex('louiDex', r.loui);
+    }).getStudentCollection(state.student.studentId);
+  }
+
+  function paintDex(id, arr) {
+    const box = document.getElementById(id);
+    box.innerHTML = '';
+    arr.forEach(c => {
+      const div = document.createElement('div');
+      div.className = `char-card ${c.owned ? '' : 'locked'}`;
+      div.innerHTML = c.owned
+        ? `<b>${c.VERSION_NAME}</b><br>${c.COLOR}<br>획득 ${c.count}회`
+        : `<b>????</b><br>실루엣`;
+      box.appendChild(div);
+    });
+  }
+
+  function setMsg(message) {
+    document.getElementById('loginMsg').textContent = message;
+  }
+</script>
