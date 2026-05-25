@@ -71,6 +71,40 @@ function injectShipBadgeLayoutFix() {
       min-height:120px;
       object-fit:contain;
     }
+
+    .ship-art-fallback{
+      display:grid !important;
+      place-items:center !important;
+      gap:6px !important;
+      width:min(280px, 100%) !important;
+      height:180px !important;
+      margin:0 auto !important;
+      border:1px solid #d9e5f4 !important;
+      border-radius:18px !important;
+      background:linear-gradient(180deg, #f8fbff 0%, #edf5ff 100%) !important;
+      color:#0b2d5c !important;
+      font-weight:950 !important;
+      text-align:center !important;
+      box-shadow:inset 0 -30px 0 rgb(91 141 247 / 10%) !important;
+    }
+
+    .ship-art-fallback span{
+      color:#2f5dde !important;
+      font-size:52px !important;
+      line-height:1 !important;
+    }
+
+    .ship-art-fallback strong{
+      color:#0b2d5c !important;
+      font-size:16px !important;
+    }
+
+    .shop-ship-image.ship-art-fallback{
+      width:100% !important;
+      height:120px !important;
+    }
+
+    .shop-ship-image.ship-art-fallback span{font-size:38px !important;}
   `;
 
   document.head.appendChild(style);
@@ -87,19 +121,29 @@ function watchShipImageFallbacks() {
 }
 
 function fixBrokenShipImages() {
-  document.querySelectorAll('.reward-ship-stage img.ship-image').forEach(img => {
+  document.querySelectorAll('img.ship-image, img.shop-ship-image').forEach(img => {
     if (img.dataset.shipFallbackReady === '1') return;
     img.dataset.shipFallbackReady = '1';
 
     const showFallback = () => {
       if (!img.isConnected) return;
       const fallback = document.createElement('div');
-      fallback.className = 'ship-placeholder';
-      fallback.textContent = img.alt || '배 이미지';
+      fallback.className = `${img.className || 'ship-placeholder'} ship-art-fallback`;
+      fallback.innerHTML = `<span aria-hidden="true">&#9973;</span><strong>${escapeHtml(img.alt || '나의 배')}</strong>`;
       img.replaceWith(fallback);
     };
 
     img.addEventListener('error', showFallback, { once: true });
     if (img.complete && img.naturalWidth === 0) showFallback();
   });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
