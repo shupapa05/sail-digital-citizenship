@@ -1,12 +1,21 @@
 import { getStudentHome } from './api.js';
 
 const PATCH_KEY = '__SAIL_INFO_RANKING_PATCHED__';
+let loadingRanking = false;
+let lastRenderAt = 0;
 
 if (!window[PATCH_KEY]) {
   window[PATCH_KEY] = true;
   injectStyle();
-  new MutationObserver(() => setTimeout(renderRanking, 80)).observe(document.body, { childList: true, subtree: true });
-  setTimeout(renderRanking, 300);
+  new MutationObserver(() => scheduleRender()).observe(document.body, { childList: true, subtree: true });
+  scheduleRender();
+}
+
+function scheduleRender() {
+  const now = Date.now();
+  if (now - lastRenderAt < 250) return;
+  lastRenderAt = now;
+  setTimeout(renderRanking, 120);
 }
 
 function injectStyle() {
@@ -58,6 +67,15 @@ function rankText(rank, total) {
 function totalText(total) {
   const t = Number(total || 0);
   return t ? `${t}명 중` : '집계 대기';
+}
+
+function removeDuplicateCards() {
+  const cards = [...document.querySelectorAll('[data-info-ranking]')];
+  cards.slice(1).forEach(card => card.remove());
+}
+
+function isInfoScreen() {
+  return Boolean(document.querySelector('.profile .ship-profile') && document.querySelector('.profile .level-progress-card'));
 }
 
 function rankRows(items) {
@@ -116,15 +134,21 @@ async function fetchRanking() {
 }
 
 async function renderRanking() {
-  const profile = document.querySelector('.profile');
-  const levelCard = document.querySelector('.profile .level-progress-card');
-  if (!profile || !levelCard || profile.querySelector('[data-info-ranking]')) return;
+  removeDuplicateCards();
+  if (!isInfoScreen() || document.querySelector('[data-info-ranking]') || loadingRanking) return;
 
+  const levelCard = document.querySelector('.profile .level-progress-card');
+  if (!levelCard) return;
+
+  loadingRanking = true;
   try {
     const ranking = await fetchRanking();
-    if (!ranking) return;
+    if (!ranking || document.querySelector('[data-info-ranking]')) return;
     levelCard.insertAdjacentHTML('afterend', rankingHtml(ranking));
+    removeDuplicateCards();
   } catch {
     // Keep the existing info screen if ranking data is temporarily unavailable.
+  } finally {
+    loadingRanking = false;
   }
 }
