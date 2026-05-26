@@ -34,15 +34,17 @@ function injectStyle() {
     .ranking-list-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
     .ranking-list{background:#fff;border:1px solid #e5edf7;border-radius:14px;padding:12px}
     .ranking-list h3{margin:0 0 8px;font-size:15px;color:#07192f}
+    .ranking-list-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
     .ranking-row{display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #edf3fb}
-    .ranking-row:first-of-type{border-top:0}
+    .ranking-row:nth-child(-n+2){border-top:0}
     .ranking-row.me{background:#fff7ed;margin:0 -8px;padding:8px;border-radius:10px;border-top:0}
     .ranking-row b{color:#3264df}
     .ranking-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#31435a;font-weight:900}
     .ranking-row small{color:#60738d;font-weight:900}
     .ranking-empty{margin:0;color:#60738d;font-size:14px}
     .ranking-note{margin:12px 0 0;color:#415a77;line-height:1.45;font-size:14px}
-    @media(max-width:720px){.ranking-grid,.ranking-list-grid{grid-template-columns:1fr}.ranking-box strong{font-size:28px}}
+    @media(max-width:900px){.ranking-list-grid{grid-template-columns:1fr}}
+    @media(max-width:720px){.ranking-grid,.ranking-list-body{grid-template-columns:1fr}.ranking-row:nth-child(2){border-top:1px solid #edf3fb}.ranking-box strong{font-size:28px}}
   `;
   document.head.appendChild(style);
 }
@@ -79,16 +81,16 @@ function isInfoScreen() {
 }
 
 function rankRows(items) {
-  const rows = Array.isArray(items) ? items.slice(0, 5) : [];
+  const rows = Array.isArray(items) ? items.slice(0, 10) : [];
   if (!rows.length) return '<p class="ranking-empty">아직 랭킹 데이터가 없습니다.</p>';
 
-  return rows.map(row => `
+  return `<div class="ranking-list-body">${rows.map(row => `
     <div class="ranking-row ${row?.is_me ? 'me' : ''}">
       <b>${Number(row?.rank || 0) || '-'}위</b>
       <span>${esc(row?.name || '학생')}</span>
       <small>${Number(row?.score || 0)}점</small>
     </div>
-  `).join('');
+  `).join('')}</div>`;
 }
 
 function rankingHtml(ranking) {
@@ -112,12 +114,12 @@ function rankingHtml(ranking) {
       </div>
       <div class="ranking-list-grid">
         <div class="ranking-list">
-          <h3>${esc(classLabel)} TOP 5</h3>
-          ${rankRows(ranking?.class_top5)}
+          <h3>${esc(classLabel)} TOP 10</h3>
+          ${rankRows(ranking?.class_top10 || ranking?.class_top5)}
         </div>
         <div class="ranking-list">
-          <h3>전체 TOP 5</h3>
-          ${rankRows(ranking?.overall_top5)}
+          <h3>전체 TOP 10</h3>
+          ${rankRows(ranking?.overall_top10 || ranking?.overall_top5)}
         </div>
       </div>
       <p class="ranking-note">현재 총점 ${score}점을 기준으로 계산됩니다. 내 이름은 주황색으로 표시됩니다.</p>
