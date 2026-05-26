@@ -24,7 +24,7 @@ function injectStyle() {
   const style = document.createElement('style');
   style.id = 'infoRankingPatchStyles';
   style.textContent = `
-    .ranking-card{margin-top:14px;background:#fff;border:1px solid #d9e5f4;border-radius:18px;padding:16px;box-shadow:0 12px 24px rgb(28 80 150 / 9%)}
+    .ranking-card{grid-column:1 / -1;margin-top:14px;background:#fff;border:1px solid #d9e5f4;border-radius:18px;padding:16px;box-shadow:0 12px 24px rgb(28 80 150 / 9%)}
     .ranking-card h2{margin:0 0 12px;color:#07192f;font-size:20px}
     .ranking-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .ranking-box{background:#f8fbff;border:1px solid #d9e5f4;border-radius:14px;padding:14px;text-align:center}
@@ -35,12 +35,12 @@ function injectStyle() {
     .ranking-list{background:#fff;border:1px solid #e5edf7;border-radius:14px;padding:12px}
     .ranking-list h3{margin:0 0 8px;font-size:15px;color:#07192f}
     .ranking-list-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
-    .ranking-row{display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #edf3fb}
+    .ranking-row{display:grid;grid-template-columns:34px minmax(42px,1fr) minmax(34px,auto);gap:6px;align-items:center;padding:8px 6px;border-top:1px solid #edf3fb}
     .ranking-row:nth-child(-n+2){border-top:0}
     .ranking-row.me{background:#fff7ed;margin:0 -8px;padding:8px;border-radius:10px;border-top:0}
     .ranking-row b{color:#3264df}
     .ranking-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#31435a;font-weight:900}
-    .ranking-row small{color:#60738d;font-weight:900}
+    .ranking-row small{color:#60738d;font-weight:900;text-align:right}
     .ranking-empty{margin:0;color:#60738d;font-size:14px}
     .ranking-note{margin:12px 0 0;color:#415a77;line-height:1.45;font-size:14px}
     @media(max-width:900px){.ranking-list-grid{grid-template-columns:1fr}}
