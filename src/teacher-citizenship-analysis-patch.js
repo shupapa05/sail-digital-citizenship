@@ -4,6 +4,7 @@ injectAnalysisStyles();
 wrapDashboardFetch();
 observeDashboard();
 setTimeout(injectTeacherAnalysis, 300);
+setInterval(dedupeTeacherAnalysisCards, 800);
 
 function wrapDashboardFetch() {
   if (window.__SAIL_TEACHER_ANALYSIS_FETCH__) return;
@@ -25,7 +26,10 @@ function wrapDashboardFetch() {
 }
 
 function observeDashboard() {
-  new MutationObserver(injectTeacherAnalysis).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(() => {
+    dedupeTeacherAnalysisCards();
+    injectTeacherAnalysis();
+  }).observe(document.body, { childList: true, subtree: true });
 }
 
 function injectAnalysisStyles() {
@@ -159,7 +163,7 @@ function analysisHtml(data) {
   const a = buildAnalysis(data);
   const maxArea = Math.max(1, ...Object.values(a.totals));
   return `
-    <section class="citizen-analysis-card" data-teacher-citizenship-analysis>
+    <section class="citizen-analysis-card" data-teacher-citizenship-analysis="1">
       <div class="analysis-head">
         <div class="analysis-ring" style="--score:${a.index}"><strong>${a.index}</strong><span>/100</span></div>
         <div class="analysis-copy">
@@ -193,13 +197,29 @@ function analysisHtml(data) {
   `;
 }
 
+function analysisCards() {
+  const exact = Array.from(document.querySelectorAll('[data-teacher-citizenship-analysis]'));
+  const legacy = Array.from(document.querySelectorAll('.citizen-analysis-card')).filter(card => !exact.includes(card));
+  return [...exact, ...legacy];
+}
+
+function dedupeTeacherAnalysisCards() {
+  const cards = analysisCards();
+  cards.forEach((card, index) => {
+    if (index > 0) card.remove();
+  });
+}
+
 function injectTeacherAnalysis() {
+  dedupeTeacherAnalysisCards();
+
   const dashboard = document.querySelector('#dashboard .teacher-dashboard') || document.querySelector('.teacher-dashboard');
-  if (!dashboard || dashboard.querySelector('[data-teacher-citizenship-analysis]')) return;
+  if (!dashboard || analysisCards().length) return;
 
   const data = readDashboard();
   if (!Object.keys(data).length) return;
 
   const anchor = dashboard.querySelector('.teacher-summary') || dashboard.querySelector('.teacher-alert') || dashboard.firstElementChild;
   if (anchor) anchor.insertAdjacentHTML('afterend', analysisHtml(data));
+  dedupeTeacherAnalysisCards();
 }
