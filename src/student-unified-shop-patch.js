@@ -21,11 +21,12 @@ const BACKGROUNDS = [
   { id: 'legend_sky', type: 'background', name: '전설의 하늘', icon: 'L', level: 10, price: 160, note: '최고 레벨 전용 배경' }
 ];
 
+let patchTimer = null;
+
 injectUnifiedShopStyles();
 wrapShopFetch();
 schedulePatch(300);
 
-let patchTimer = null;
 function schedulePatch(delay = 120) {
   if (patchTimer) clearTimeout(patchTimer);
   patchTimer = setTimeout(() => {
@@ -114,7 +115,7 @@ function patchShop() {
 function setActiveTab(tab) {
   const selected = ['ship', 'item', 'background'].includes(tab) ? tab : 'ship';
   document.querySelectorAll('[data-shop-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.shopTab === selected));
-  document.querySelectorAll('[data-shop-panel]').forEach(panel => panel.hidden = panel.dataset.shopPanel !== selected);
+  document.querySelectorAll('[data-shop-panel]').forEach(panel => panel.hidden = panel.datasetShopPanel !== selected && panel.dataset.shopPanel !== selected);
 }
 
 function shopCards(list) {
