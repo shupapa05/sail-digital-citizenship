@@ -4,6 +4,11 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 const HOME_KEY = 'SAIL_BACKGROUND_HOME_V1';
 const DECOR_KEY = 'SAIL_BACKGROUND_DECOR_STATUS_V1';
 
+let renderScheduled = false;
+let shopRendering = false;
+let decorationsCache = null;
+let statusRefreshing = false;
+
 const SCENES = {
   clear: { name: '기본 바다', className: 'bg-clear', desc: '배만 깔끔하게 보여요' },
   lighthouse: { name: '안전 등대', className: 'bg-lighthouse', desc: '따뜻한 등대빛' },
@@ -20,7 +25,7 @@ const SCENES = {
 injectBackgroundStyles();
 wrapHomeFetch();
 watchBackgroundUi();
-setTimeout(enhanceBackgroundUi, 400);
+scheduleEnhance();
 
 function injectBackgroundStyles() {
   if (document.querySelector('#studentBackgroundShopStyles')) return;
@@ -60,7 +65,7 @@ function wrapHomeFetch() {
     if (url.includes('/rpc/get_student_home') || url.includes('/rpc/login_student') || url.includes('/rpc/save_mission_result')) {
       res.clone().json().then(data => {
         if (data?.student && data?.status) localStorage.setItem(HOME_KEY, JSON.stringify(data));
-        refreshDecorationStatus().finally(() => setTimeout(enhanceBackgroundUi, 100));
+        refreshDecorationStatus().finally(scheduleEnhance);
       }).catch(() => {});
     }
     return res;
@@ -68,7 +73,16 @@ function wrapHomeFetch() {
 }
 
 function watchBackgroundUi() {
-  new MutationObserver(enhanceBackgroundUi).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(scheduleEnhance).observe(document.body, { childList: true, subtree: true });
+}
+
+function scheduleEnhance() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  setTimeout(() => {
+    renderScheduled = false;
+    enhanceBackgroundUi();
+  }, 120);
 }
 
 async function request(path, options = {}) {
@@ -88,18 +102,26 @@ async function request(path, options = {}) {
 }
 
 async function fetchDecorations() {
-  return request('/rest/v1/decorations?active=eq.true&select=decoration_id,name,price,required_level&order=required_level.asc,price.asc');
+  if (decorationsCache) return decorationsCache;
+  decorationsCache = await request('/rest/v1/decorations?active=eq.true&select=decoration_id,name,price,required_level&order=required_level.asc,price.asc').catch(() => []);
+  return decorationsCache;
 }
 
 async function refreshDecorationStatus() {
+  if (statusRefreshing) return null;
   const studentId = localStorage.getItem('SAIL_STUDENT_ID');
   if (!studentId) return null;
-  const status = await request('/rest/v1/rpc/sail_decoration_status', {
-    method: 'POST',
-    body: JSON.stringify({ p_student_id: studentId })
-  });
-  localStorage.setItem(DECOR_KEY, JSON.stringify(status || {}));
-  return status;
+  statusRefreshing = true;
+  try {
+    const status = await request('/rest/v1/rpc/sail_decoration_status', {
+      method: 'POST',
+      body: JSON.stringify({ p_student_id: studentId })
+    });
+    localStorage.setItem(DECOR_KEY, JSON.stringify(status || {}));
+    return status;
+  } finally {
+    statusRefreshing = false;
+  }
 }
 
 function readJson(key, fallback = {}) {
@@ -113,32 +135,40 @@ function applyBackground() {
   const id = status.equipped_decoration_id || 'clear';
   const scene = sceneOf(id);
   document.querySelectorAll('.reward-ship-stage, .ship-profile > div:first-child').forEach(stage => {
+    if (stage.dataset.backgroundScene === id) return;
     Object.values(SCENES).forEach(item => stage.classList.remove(item.className));
     stage.classList.add(scene.className);
+    stage.dataset.backgroundScene = id;
   });
 }
 
 async function renderBackgroundShop() {
   const info = document.querySelector('.ship-shop');
-  if (!info || document.querySelector('.background-shop')) return;
-  const home = readJson(HOME_KEY);
-  const status = readJson(DECOR_KEY);
-  const level = Number(status.level || home.status?.level || 1);
-  const coin = Number(status.coin || home.status?.coin || 0);
-  const owned = new Set(status.owned_decoration_ids || ['clear']);
-  const equipped = status.equipped_decoration_id || 'clear';
-  const rows = await fetchDecorations().catch(() => []);
+  if (!info || document.querySelector('.background-shop') || shopRendering) return;
+  shopRendering = true;
+  try {
+    const home = readJson(HOME_KEY);
+    const status = readJson(DECOR_KEY);
+    const level = Number(status.level || home.status?.level || 1);
+    const coin = Number(status.coin || home.status?.coin || 0);
+    const owned = new Set(status.owned_decoration_ids || ['clear']);
+    const equipped = status.equipped_decoration_id || 'clear';
+    const rows = await fetchDecorations();
+    if (!info.isConnected || document.querySelector('.background-shop')) return;
 
-  info.insertAdjacentHTML('afterend', `
-    <section class="background-shop">
-      <h1>배경 상점</h1>
-      <p>배를 가리지 않는 은은한 배경 아이템입니다. 보유한 배경은 바로 선택할 수 있어요.</p>
-      <div class="background-grid">
-        ${rows.map(item => backgroundCard(item, { level, coin, owned, equipped })).join('')}
-      </div>
-    </section>
-  `);
-  bindBackgroundButtons();
+    info.insertAdjacentHTML('afterend', `
+      <section class="background-shop">
+        <h1>배경 상점</h1>
+        <p>배를 가리지 않는 은은한 배경 아이템입니다. 보유한 배경은 바로 선택할 수 있어요.</p>
+        <div class="background-grid">
+          ${rows.map(item => backgroundCard(item, { level, coin, owned, equipped })).join('')}
+        </div>
+      </section>
+    `);
+    bindBackgroundButtons();
+  } finally {
+    shopRendering = false;
+  }
 }
 
 function backgroundCard(item, state) {
@@ -164,12 +194,20 @@ function backgroundCard(item, state) {
 }
 
 function bindBackgroundButtons() {
-  document.querySelectorAll('[data-buy-bg]').forEach(button => button.addEventListener('click', async () => {
-    await runBgAction(button, '구매 중...', async () => buyDecoration(localStorage.getItem('SAIL_STUDENT_ID'), button.dataset.buyBg));
-  }));
-  document.querySelectorAll('[data-equip-bg]').forEach(button => button.addEventListener('click', async () => {
-    await runBgAction(button, '선택 중...', async () => setEquippedDecoration(localStorage.getItem('SAIL_STUDENT_ID'), button.dataset.equipBg));
-  }));
+  document.querySelectorAll('[data-buy-bg]').forEach(button => {
+    if (button.dataset.bgReady) return;
+    button.dataset.bgReady = '1';
+    button.addEventListener('click', async () => {
+      await runBgAction(button, '구매 중...', async () => buyDecoration(localStorage.getItem('SAIL_STUDENT_ID'), button.dataset.buyBg));
+    });
+  });
+  document.querySelectorAll('[data-equip-bg]').forEach(button => {
+    if (button.dataset.bgReady) return;
+    button.dataset.bgReady = '1';
+    button.addEventListener('click', async () => {
+      await runBgAction(button, '선택 중...', async () => setEquippedDecoration(localStorage.getItem('SAIL_STUDENT_ID'), button.dataset.equipBg));
+    });
+  });
 }
 
 async function runBgAction(button, label, action) {
@@ -183,7 +221,7 @@ async function runBgAction(button, label, action) {
     localStorage.setItem(HOME_KEY, JSON.stringify(home));
     document.querySelector('.background-shop')?.remove();
     await refreshDecorationStatus();
-    enhanceBackgroundUi();
+    scheduleEnhance();
   } catch (error) {
     alert(error.message || '처리하지 못했습니다.');
   } finally {
