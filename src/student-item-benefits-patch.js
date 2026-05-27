@@ -18,6 +18,7 @@ const BACKGROUND_TARGETS = [
 ];
 
 let benefitTimer = null;
+let lastSignature = '';
 
 injectItemBenefitStyles();
 wrapBenefitFetch();
@@ -44,6 +45,7 @@ function wrapBenefitFetch() {
     if (url.includes('/rpc/login_student') || url.includes('/rpc/get_student_home') || url.includes('/rpc/save_mission_result')) {
       response.clone().json().then(data => {
         if (data?.status) localStorage.setItem('SAIL_UNIFIED_SHOP_STATUS_V1', JSON.stringify(data.status));
+        lastSignature = '';
         scheduleBenefits(80);
       }).catch(() => {});
     }
@@ -58,6 +60,11 @@ function applyItemBenefits() {
   const status = getStatus();
   if (!Object.keys(status).length) return;
 
+  const screen = currentScreen();
+  const signature = [screen, active.join(','), status.total_score, status.level, status.streak, status.s_count, status.a_count, status.i_count, status.l_count].join('|');
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+
   clearStaleBenefits();
   if (active.includes('item_compass')) applyCompass(status);
   if (active.includes('item_lighthouse')) applyLighthouse(status);
@@ -65,10 +72,17 @@ function applyItemBenefits() {
   if (active.includes('item_star_badge')) applyStarBadge();
 }
 
+function currentScreen() {
+  if (document.querySelector('.mission-grid')) return 'missions';
+  if (document.querySelector('.mission-form')) return 'mission-form';
+  if (document.querySelector('.ship-profile')) return 'info';
+  if (document.querySelector('.home-title-card')) return 'home';
+  return 'other';
+}
+
 function clearStaleBenefits() {
   document.querySelectorAll('[data-item-benefit]').forEach(el => el.remove());
   document.querySelectorAll('.mission-card.item-recommended').forEach(el => el.classList.remove('item-recommended'));
-  document.querySelectorAll('.student-title-pill.item-star-title').forEach(el => el.remove());
 }
 
 function applyCompass(status) {
