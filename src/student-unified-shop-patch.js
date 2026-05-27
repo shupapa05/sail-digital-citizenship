@@ -115,7 +115,7 @@ function patchShop() {
 function setActiveTab(tab) {
   const selected = ['ship', 'item', 'background'].includes(tab) ? tab : 'ship';
   document.querySelectorAll('[data-shop-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.shopTab === selected));
-  document.querySelectorAll('[data-shop-panel]').forEach(panel => panel.hidden = panel.datasetShopPanel !== selected && panel.dataset.shopPanel !== selected);
+  document.querySelectorAll('[data-shop-panel]').forEach(panel => panel.hidden = panel.dataset.shopPanel !== selected);
 }
 
 function shopCards(list) {
@@ -137,7 +137,7 @@ function shopCards(list) {
 
     return `
       <article class="unified-shop-card ${isActive ? 'active' : ''} ${!isOwned && !canBuy ? 'locked' : ''}">
-        <div class="shop-icon ${item.type}-${item.id}">${item.icon}</div>
+        ${previewHtml(item)}
         <h2>${esc(item.name)}</h2>
         <p>Lv.${item.level} · ${item.price}코인</p>
         <small>${esc(item.note)}</small>
@@ -145,6 +145,23 @@ function shopCards(list) {
       </article>
     `;
   }).join('')}</div>`;
+}
+
+function previewHtml(item) {
+  const label = esc(item.name);
+  if (item.type === 'background') {
+    return `
+      <div class="shop-preview bg-preview bg-${item.id}" aria-label="${label} 미리보기">
+        <span class="preview-boat"></span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="shop-preview item-preview item-${item.id}" aria-label="${label} 미리보기">
+      <span class="item-art-shape"></span>
+    </div>
+  `;
 }
 
 async function handleBuy(button) {
@@ -293,11 +310,17 @@ function injectUnifiedShopStyles() {
     .shop-tabs button{border:0;border-radius:10px;background:transparent;color:#415a77;font-weight:950;padding:10px}.shop-tabs button.active{background:#3264df;color:#fff;box-shadow:0 8px 16px rgb(50 100 223 / 18%)}
     .shop-panel[hidden]{display:none!important}.unified-shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
     .unified-shop-card{background:#f8fbff;border:1px solid #d9e5f4;border-radius:18px;padding:14px;text-align:center;display:grid;gap:7px;align-content:start}.unified-shop-card.active{background:#fff7ed;border-color:#fed7aa}.unified-shop-card.locked{opacity:.72}
-    .shop-icon{width:56px;height:56px;margin:0 auto;border-radius:16px;display:grid;place-items:center;background:linear-gradient(180deg,#5b8df7,#3264df);color:#fff;font-weight:950;font-size:22px}.unified-shop-card h2{margin:2px 0 0;font-size:18px;color:#07192f}.unified-shop-card p{margin:0;color:#415a77;font-weight:900}.unified-shop-card small{min-height:34px;color:#60738d;font-weight:800;line-height:1.35}.unified-shop-card button{width:100%;min-height:40px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:950}.unified-shop-card.active button{background:#e0e7ff;color:#1d4ed8}.unified-shop-card button:disabled{background:#e5e7eb;color:#64748b}
+    .shop-preview{position:relative;width:100%;height:112px;border-radius:16px;overflow:hidden;border:1px solid #e5edf7;background:#fff;display:grid;place-items:center;isolation:isolate}.unified-shop-card h2{margin:2px 0 0;font-size:18px;color:#07192f}.unified-shop-card p{margin:0;color:#415a77;font-weight:900}.unified-shop-card small{min-height:34px;color:#60738d;font-weight:800;line-height:1.35}.unified-shop-card button{width:100%;min-height:40px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:950}.unified-shop-card.active button{background:#e0e7ff;color:#1d4ed8}.unified-shop-card button:disabled{background:#e5e7eb;color:#64748b}
+    .item-preview{background:linear-gradient(180deg,#f8fbff,#eef6ff)}.item-art-shape{position:relative;display:block;width:64px;height:64px}.item-item_compass .item-art-shape{border:7px solid #2563eb;border-radius:50%;background:radial-gradient(circle,#fff 0 32%,#dbeafe 34% 100%);box-shadow:0 12px 24px rgb(37 99 235 / 18%)}.item-item_compass .item-art-shape:before{content:"";position:absolute;left:24px;top:7px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:28px solid #f97316;transform:rotate(35deg);transform-origin:50% 100%}.item-item_compass .item-art-shape:after{content:"";position:absolute;left:24px;bottom:7px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid #60a5fa;transform:rotate(35deg);transform-origin:50% 0}
+    .item-item_lighthouse .item-art-shape{width:54px;height:72px;border-radius:12px 12px 8px 8px;background:repeating-linear-gradient(180deg,#fff 0 13px,#ef4444 13px 24px);box-shadow:0 12px 24px rgb(239 68 68 / 18%)}.item-item_lighthouse .item-art-shape:before{content:"";position:absolute;left:10px;top:-13px;border-left:17px solid transparent;border-right:17px solid transparent;border-bottom:18px solid #1d4ed8}.item-item_lighthouse .item-art-shape:after{content:"";position:absolute;left:-26px;top:8px;width:106px;height:22px;background:radial-gradient(ellipse,rgba(253,224,71,.72),transparent 68%);z-index:-1}
+    .item-item_telescope .item-art-shape{width:78px;height:34px;border-radius:999px;background:linear-gradient(90deg,#1e40af,#60a5fa);transform:rotate(-18deg);box-shadow:0 12px 24px rgb(30 64 175 / 20%)}.item-item_telescope .item-art-shape:before{content:"";position:absolute;right:-10px;top:4px;width:24px;height:26px;border-radius:50%;background:#dbeafe;border:5px solid #1d4ed8}.item-item_telescope .item-art-shape:after{content:"";position:absolute;left:24px;top:30px;width:8px;height:34px;background:#475569;transform:rotate(18deg);border-radius:999px}
+    .item-item_star_badge .item-art-shape{width:72px;height:72px;border-radius:20px;background:conic-gradient(from 120deg,#fde68a,#f59e0b,#fff7ed,#facc15,#fde68a);box-shadow:0 12px 24px rgb(245 158 11 / 22%)}.item-item_star_badge .item-art-shape:before{content:"";position:absolute;inset:14px;background:#fff7ed;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 56%,79% 92%,50% 70%,21% 92%,32% 56%,2% 35%,39% 35%)}.item-item_star_badge .item-art-shape:after{content:"";position:absolute;inset:5px;border:2px solid rgba(255,255,255,.7);border-radius:16px}
+    .bg-preview:before{content:"";position:absolute;inset:0;z-index:-2}.bg-preview:after{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;background:linear-gradient(180deg,rgba(255,255,255,0),rgba(59,130,246,.28));z-index:-1}.preview-boat{position:relative;width:58px;height:34px;margin-top:28px}.preview-boat:before{content:"";position:absolute;left:4px;right:4px;bottom:0;height:15px;background:linear-gradient(90deg,#2563eb,#60a5fa);clip-path:polygon(0 0,100% 0,78% 100%,18% 100%)}.preview-boat:after{content:"";position:absolute;left:22px;bottom:14px;border-left:17px solid transparent;border-right:0 solid transparent;border-bottom:44px solid rgba(255,255,255,.92);filter:drop-shadow(7px 0 0 rgba(251,146,60,.9))}
+    .bg-mist_dawn:before{background:radial-gradient(circle at 24% 18%,rgba(255,255,255,.95),transparent 32%),linear-gradient(135deg,#e0f2fe,#f8fafc)}.bg-moon_path:before{background:radial-gradient(circle at 74% 22%,#fef9c3 0 10%,transparent 11%),linear-gradient(135deg,#1e3a8a,#dbeafe)}.bg-aurora_sea:before{background:linear-gradient(120deg,rgba(45,212,191,.62),rgba(96,165,250,.28),rgba(192,132,252,.6)),linear-gradient(180deg,#ecfeff,#eff6ff)}.bg-golden_sunset:before{background:radial-gradient(circle at 76% 24%,#f59e0b 0 14%,transparent 15%),linear-gradient(135deg,#ffedd5,#dbeafe)}.bg-legend_sky:before{background:radial-gradient(circle at 20% 20%,#fff 0 10%,transparent 11%),linear-gradient(120deg,#93c5fd,#c4b5fd,#fde68a)}
     .equipped-item-strip{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}.equipped-item-strip span{display:inline-flex;align-items:center;gap:6px;border:1px solid #d9e5f4;border-radius:999px;background:rgba(255,255,255,.82);padding:7px 10px;color:#415a77;font-weight:900}.equipped-item-strip b{display:grid;place-items:center;width:22px;height:22px;border-radius:999px;background:#3264df;color:#fff;font-size:12px}
     .ship-profile{position:relative;overflow:hidden}.ship-profile>*{position:relative;z-index:1}.ship-profile::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .2s ease;z-index:0}.ship-profile[class*="shop-bg-"]::before{opacity:1}
     .shop-bg-mist_dawn::before{background:radial-gradient(circle at 22% 18%,rgba(255,255,255,.95),transparent 28%),linear-gradient(135deg,rgba(226,242,255,.78),rgba(241,248,255,.55))}.shop-bg-moon_path::before{background:radial-gradient(circle at 74% 18%,rgba(255,255,230,.9),transparent 12%),linear-gradient(135deg,rgba(30,64,175,.16),rgba(219,234,254,.62))}.shop-bg-aurora_sea::before{background:linear-gradient(120deg,rgba(45,212,191,.28),rgba(96,165,250,.12),rgba(192,132,252,.26)),linear-gradient(180deg,rgba(240,253,250,.74),rgba(239,246,255,.68))}.shop-bg-golden_sunset::before{background:radial-gradient(circle at 76% 24%,rgba(251,191,36,.5),transparent 22%),linear-gradient(135deg,rgba(255,247,237,.88),rgba(219,234,254,.54))}.shop-bg-legend_sky::before{background:radial-gradient(circle at 20% 20%,rgba(255,255,255,.9),transparent 12%),linear-gradient(120deg,rgba(147,197,253,.34),rgba(196,181,253,.28),rgba(250,204,21,.18))}
-    @media(max-width:720px){.ship-shop{padding:12px}.unified-shop-head h1{font-size:26px}.unified-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.unified-shop-card{padding:10px}.shop-icon{width:48px;height:48px}.unified-shop-card h2{font-size:15px}.unified-shop-card small{font-size:12px}}
+    @media(max-width:720px){.ship-shop{padding:12px}.unified-shop-head h1{font-size:26px}.unified-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.unified-shop-card{padding:10px}.shop-preview{height:92px}.unified-shop-card h2{font-size:15px}.unified-shop-card small{font-size:12px}}
   `;
   document.head.appendChild(style);
 }
