@@ -1,4 +1,4 @@
-import { getStudentTreasures, openTreasureChest } from './api.js';
+import { getStudentTreasures, openTreasureChest } from './api.js?v=20260527-treasure1';
 
 const CACHE_KEY = 'SAIL_TREASURE_CACHE_V1';
 let treasureTimer = null;
