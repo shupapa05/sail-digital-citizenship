@@ -137,20 +137,27 @@ function treasureHtml(data) {
 }
 
 function rewardLine(chest) {
-  const tag = chest.reward_type === 'offline_coupon' ? '선생님 확인' : '획득 완료';
+  const tag = chest.reward_type === 'offline_coupon' ? '선생님 확인' : chest.reward_type === 'none' ? '다음 기회' : '획득 완료';
   return `<p><b>${esc(chest.reward_name || '보상')}</b><span>${esc(tag)}</span></p>`;
 }
 
 function showReward(reward) {
   document.querySelector('[data-treasure-reward-modal]')?.remove();
   const isOffline = reward.reward_type === 'offline_coupon';
+  const isTryAgain = reward.reward_type === 'none';
+  const footer = isOffline
+    ? '<strong>오프라인 쿠폰입니다. 선생님께 이 화면을 보여주세요.</strong>'
+    : isTryAgain
+      ? '<strong>이번에는 보상이 없지만, 꾸준한 항해 기록은 남았어요.</strong>'
+      : '<strong>온라인 보상이 적용됐어요.</strong>';
+
   document.body.insertAdjacentHTML('beforeend', `
     <div class="treasure-modal-backdrop" data-treasure-reward-modal>
       <section class="treasure-modal">
         <div class="treasure-big-icon">상자</div>
         <h2>${esc(reward.name || reward.reward_name || '보상 획득')}</h2>
-        <p>${esc(reward.description || reward.reward_description || '보물상자 보상을 받았어요.')}</p>
-        ${isOffline ? '<strong>오프라인 쿠폰입니다. 선생님께 이 화면을 보여주세요.</strong>' : '<strong>온라인 보상이 적용됐어요.</strong>'}
+        <p>${esc(reward.description || reward.reward_description || '보물상자를 열었어요.')}</p>
+        ${footer}
         <button type="button">확인</button>
       </section>
     </div>
