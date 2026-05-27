@@ -5,6 +5,7 @@ const GUARDED_PATCHES = [
   'ship-shop-toggle-patch.js',
   'student-participation-rewards-patch.js',
   'student-unified-shop-patch.js',
+  'student-shop-art-polish-patch.js',
   'student-item-benefits-patch.js',
   'student-treasure-chest-patch.js',
   'student-ship-benefits-patch.js'
