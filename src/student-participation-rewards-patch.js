@@ -2,11 +2,11 @@ const HOME_CACHE_KEY = 'SAIL_PARTICIPATION_HOME_CACHE_V1';
 const BONUS_CACHE_KEY = 'SAIL_LAST_REWARD_BONUS_V1';
 
 const LEVEL_TARGETS = [25, 50, 80, 120, 170, 230, 300, 380, 470];
+let enhanceTimer = null;
 
 injectParticipationStyles();
 wrapParticipationFetch();
-watchParticipationUi();
-setTimeout(enhanceParticipationUi, 300);
+scheduleEnhance(400);
 
 function injectParticipationStyles() {
   if (document.querySelector('#participationRewardStyles')) return;
@@ -38,15 +38,19 @@ function wrapParticipationFetch() {
       response.clone().json().then(data => {
         if (data?.student && data?.status) localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data));
         if (data?.reward_bonus) localStorage.setItem(BONUS_CACHE_KEY, JSON.stringify(data.reward_bonus));
-        setTimeout(enhanceParticipationUi, 80);
+        scheduleEnhance(80);
       }).catch(() => {});
     }
     return response;
   };
 }
 
-function watchParticipationUi() {
-  new MutationObserver(enhanceParticipationUi).observe(document.body, { childList: true, subtree: true });
+function scheduleEnhance(delay = 120) {
+  if (enhanceTimer) clearTimeout(enhanceTimer);
+  enhanceTimer = setTimeout(() => {
+    enhanceTimer = null;
+    enhanceParticipationUi();
+  }, delay);
 }
 
 function readJson(key, fallback = {}) {
@@ -69,6 +73,10 @@ function currentLevel(score) {
   if (score >= 50) return 3;
   if (score >= 25) return 2;
   return 1;
+}
+
+function setText(node, text) {
+  if (node && node.textContent !== text) node.textContent = text;
 }
 
 function enhanceParticipationUi() {
@@ -142,10 +150,10 @@ function enhanceLevelProgress() {
   const bar = card.querySelector('.progress-track i');
   const smalls = card.querySelectorAll('small');
 
-  if (label) label.textContent = next ? '다음 레벨까지' : '최고 레벨';
-  if (strong) strong.textContent = next ? `${next - score}점` : 'Lv.10 도달';
-  if (bar) bar.style.width = `${progress}%`;
-  if (smalls[0]) smalls[0].textContent = `진행도 ${progress}% · Lv.${level}/10`;
+  setText(label, next ? '다음 레벨까지' : '최고 레벨');
+  setText(strong, next ? `${next - score}점` : 'Lv.10 도달');
+  if (bar && bar.style.width !== `${progress}%`) bar.style.width = `${progress}%`;
+  setText(smalls[0], `진행도 ${progress}% · Lv.${level}/10`);
 }
 
 function escapeHtml(value) {
