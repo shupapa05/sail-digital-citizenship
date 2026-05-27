@@ -4,7 +4,8 @@ const GUARDED_PATCHES = [
   'ship-badge-layout-fix.js',
   'ship-shop-toggle-patch.js',
   'student-participation-rewards-patch.js',
-  'student-unified-shop-patch.js'
+  'student-unified-shop-patch.js',
+  'student-item-benefits-patch.js'
 ];
 
 if (!window.__SAIL_INFO_FREEZE_GUARD__ && window.MutationObserver) {
