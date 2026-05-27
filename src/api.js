@@ -197,6 +197,20 @@ export async function setEquippedDecoration(studentId, decorationId) {
   });
 }
 
+export async function getStudentTreasures(studentId, loginCode) {
+  return request('/rest/v1/rpc/get_student_treasures', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_login_code: loginCode })
+  });
+}
+
+export async function openTreasureChest(studentId, loginCode, chestId) {
+  return request('/rest/v1/rpc/open_treasure_chest', {
+    method: 'POST',
+    body: JSON.stringify({ p_student_id: studentId, p_login_code: loginCode, p_chest_id: chestId })
+  });
+}
+
 export async function uploadProofPhoto(studentId, file) {
   if (!file) return { url: '', fileId: '' };
 
