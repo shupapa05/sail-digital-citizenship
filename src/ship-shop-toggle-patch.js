@@ -14,3 +14,10 @@ if (!document.querySelector('#shipShopBaseStyles')) {
 }
 
 document.querySelectorAll('.ship-shop-toggle-wrap').forEach(el => el.remove());
+
+if (!window.__SAIL_UNIFIED_SHOP_IMPORT__) {
+  window.__SAIL_UNIFIED_SHOP_IMPORT__ = true;
+  import('./student-unified-shop-patch.js?v=20260527-shop3').catch(() => {
+    window.__SAIL_UNIFIED_SHOP_IMPORT__ = false;
+  });
+}
