@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>S.A.I.L 디지털 시민성 길라잡이</title>
-    <link rel="stylesheet" href="./src/guide.css?v=20260528-guide3">
+    <link rel="stylesheet" href="./src/guide.css?v=20260528-guide4">
   </head>
   <body>
     <main class="guide-main">
@@ -64,6 +64,19 @@
       </div>
     </div>
 
+    <div id="printViewModal" class="modal-mask">
+      <div class="modal print-modal">
+        <div class="print-view-head">
+          <div>
+            <div class="modal-title">활동 그림자료</div>
+            <p id="printViewSub">출력하거나 다운로드할 자료를 선택하세요.</p>
+          </div>
+          <button id="closePrintViewBtn" class="btn light" type="button">닫기</button>
+        </div>
+        <div id="printViewList" class="print-view-list"></div>
+      </div>
+    </div>
+
     <div id="areaModal" class="modal-mask">
       <div class="modal small-modal">
         <div id="areaModalTitle" class="modal-title">영역 추가</div>
@@ -116,6 +129,6 @@
     </div>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="./src/guide.js?v=20260528-guide2"></script>
+    <script type="module" src="./src/guide.js?v=20260528-guide3"></script>
   </body>
 </html>
