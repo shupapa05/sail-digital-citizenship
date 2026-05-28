@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>S.A.I.L 디지털 시민성 길라잡이</title>
-    <link rel="stylesheet" href="./src/guide.css?v=20260528-guide1">
+    <link rel="stylesheet" href="./src/guide.css?v=20260528-guide2">
   </head>
   <body>
     <main class="guide-main">
@@ -25,9 +25,9 @@
             <h2>S.A.I.L 4개 영역</h2>
             <p>영역을 선택하면 등록된 수업 프로그램과 활용 자료가 표시됩니다.</p>
           </div>
-          <div id="libraryAdminActions" class="admin-actions hidden">
-            <button id="addAreaBtn" class="btn light small" type="button">+ 영역</button>
-            <button id="addActivityBtn" class="btn primary small" type="button">+ 프로그램</button>
+          <div id="libraryAdminActions" class="admin-actions">
+            <button id="addAreaBtn" class="btn light small admin-only hidden" type="button">+ 영역</button>
+            <button id="addActivityBtn" class="btn primary small" type="button">+ 프로그램 등록</button>
           </div>
         </div>
         <div id="areaTabs" class="area-tabs"></div>
@@ -80,16 +80,32 @@
 
     <div id="activityModal" class="modal-mask">
       <div class="modal">
-        <div id="activityModalTitle" class="modal-title">프로그램 추가</div>
+        <div id="activityModalTitle" class="modal-title">프로그램 등록</div>
         <div class="form-grid">
           <label><span>영역</span><select id="activityAreaSelect"></select></label>
           <label><span>색상</span><select id="activityColorSelect"><option value="blue">파랑</option><option value="green">초록</option><option value="sky">하늘</option><option value="red">빨강</option></select></label>
           <label class="full"><span>프로그램명</span><input id="activityTitleInput" type="text" placeholder="프로그램명"></label>
-          <label class="full"><span>설명</span><textarea id="activityDescriptionInput" placeholder="프로그램 설명"></textarea></label>
+          <label class="full"><span>프로그램 설명</span><textarea id="activityDescriptionInput" placeholder="목적, 수업 장면, 준비물 등을 간단히 적어주세요"></textarea></label>
           <label class="full"><span>활용 메모</span><textarea id="activityMemoInput" placeholder="교사가 참고할 활용 메모"></textarea></label>
-          <label class="full"><span>링크</span><textarea id="activityLinksInput" placeholder="예: 활동안내|https://example.com&#10;또는 그냥 https://example.com"></textarea></label>
-          <div class="full"><span class="field-label">기존 첨부</span><div id="activityExistingFiles" class="readonly-box">첨부 없음</div></div>
-          <label class="full"><span>파일 첨부</span><input id="activityFilesInput" type="file" multiple></label>
+          <label class="full"><span>관련 링크</span><textarea id="activityLinksInput" placeholder="예: 활동안내|https://example.com&#10;또는 그냥 https://example.com"></textarea></label>
+
+          <div class="full material-panel">
+            <div class="material-title">등록된 자료</div>
+            <div id="activityExistingFiles" class="readonly-box material-list">첨부 없음</div>
+          </div>
+
+          <label class="full upload-panel pdf-upload">
+            <span>PDF 설명자료</span>
+            <small>프로그램 개요, 수업 흐름, 교사용 안내자료를 PDF로 올립니다.</small>
+            <input id="activityPdfFilesInput" type="file" accept="application/pdf,.pdf" multiple>
+          </label>
+
+          <label class="full upload-panel image-upload">
+            <span>활동 그림자료</span>
+            <small>바로 출력해서 쓸 PNG/JPG 그림자료를 올립니다. 상세 화면에서 미리보기가 보입니다.</small>
+            <input id="activityImageFilesInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+          </label>
+
           <label><span>정렬 순서</span><input id="activitySortInput" type="text" placeholder="예: 1"></label>
         </div>
         <div class="modal-actions">
@@ -100,6 +116,6 @@
     </div>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="./src/guide.js?v=20260528-guide1"></script>
+    <script type="module" src="./src/guide.js?v=20260528-guide2"></script>
   </body>
 </html>
