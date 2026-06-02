@@ -1,0 +1,58 @@
+.file-name-line.marked-remove {
+  border-radius: 10px;
+  background: #fff5f5;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.file-name-line.marked-remove .file-name-text {
+  color: #991b1b;
+  text-decoration: line-through;
+}
+
+.file-name-text em {
+  display: inline-flex;
+  margin-left: 8px;
+  color: #b91c1c;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.file-remove-btn {
+  min-height: 28px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fff5f5;
+  color: #b91c1c;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.marked-remove .file-remove-btn {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .file-name-line {
+    align-items: flex-start;
+  }
+
+  .file-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
