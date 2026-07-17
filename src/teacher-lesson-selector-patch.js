@@ -67,9 +67,20 @@ function esc(value) {
   }[ch]));
 }
 
+function selectorCards() {
+  return [...document.querySelectorAll('[data-lesson-selector], .lesson-selector-card')]
+    .filter((card, index, list) => list.indexOf(card) === index);
+}
+
 function removeDuplicateSelectors() {
-  const cards = [...document.querySelectorAll('[data-lesson-selector]')];
+  const cards = selectorCards();
+  cards.forEach(card => card.setAttribute('data-lesson-selector', '1'));
   cards.slice(1).forEach(card => card.remove());
+  return cards[0] || null;
+}
+
+function hasSelector() {
+  return Boolean(removeDuplicateSelectors());
 }
 
 async function loadPool() {
@@ -110,7 +121,7 @@ async function renderSelector() {
   removeDuplicateSelectors();
   if (loading || !isTeacherMode()) return;
   const dashboard = document.querySelector('#dashboard .teacher-dashboard') || document.querySelector('#dashboard');
-  if (!dashboard || document.querySelector('[data-lesson-selector]')) return;
+  if (!dashboard || hasSelector() || dashboard.dataset.lessonSelectorLoading === '1') return;
 
   const classCode = currentClassCode();
   if (!classCode) return;
@@ -122,8 +133,7 @@ async function renderSelector() {
       loadPool(),
       getClassLessonSetting(classCode).catch(() => ({ mode: 'daily' }))
     ]);
-    removeDuplicateSelectors();
-    if (document.querySelector('[data-lesson-selector]')) return;
+    if (hasSelector()) return;
 
     const selectedArea = setting?.area_code || 'S';
     const selectedActivity = Number(setting?.activity_no || 1);
@@ -133,7 +143,7 @@ async function renderSelector() {
       : '일상생활 전체 랜덤';
 
     dashboard.insertAdjacentHTML('afterbegin', `
-      <section class="lesson-selector-card" data-lesson-selector>
+      <section class="lesson-selector-card" data-lesson-selector="1">
         <div class="lesson-selector-head">
           <div>
             <h2>오늘 질문 범위</h2>
@@ -163,6 +173,7 @@ async function renderSelector() {
   } finally {
     loading = false;
     delete dashboard.dataset.lessonSelectorLoading;
+    removeDuplicateSelectors();
   }
 }
 
@@ -188,7 +199,7 @@ function bindSelector(pool, classCode) {
       activityNo: activitySelect.value,
       activeUntil: form.elements.activeUntil.value || today()
     });
-    document.querySelector('[data-lesson-selector]')?.remove();
+    selectorCards().forEach(card => card.remove());
     scheduleRender();
   });
 
@@ -199,7 +210,7 @@ function bindSelector(pool, classCode) {
       mode: 'daily',
       activeUntil: today()
     });
-    document.querySelector('[data-lesson-selector]')?.remove();
+    selectorCards().forEach(card => card.remove());
     scheduleRender();
   }, { once: true });
 }
