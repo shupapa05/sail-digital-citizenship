@@ -5,6 +5,7 @@ const AREA_LABELS = { S: '안전', A: '책임', I: '윤리', L: '소통' };
 
 let poolCache = null;
 let loading = false;
+let renderTimer = null;
 
 if (!window[PATCH_KEY]) {
   window[PATCH_KEY] = true;
@@ -14,8 +15,8 @@ if (!window[PATCH_KEY]) {
 }
 
 function scheduleRender() {
-  if (loading) return;
-  setTimeout(renderSelector, 120);
+  if (renderTimer) clearTimeout(renderTimer);
+  renderTimer = setTimeout(renderSelector, 160);
 }
 
 function injectStyle() {
@@ -66,6 +67,11 @@ function esc(value) {
   }[ch]));
 }
 
+function removeDuplicateSelectors() {
+  const cards = [...document.querySelectorAll('[data-lesson-selector]')];
+  cards.slice(1).forEach(card => card.remove());
+}
+
 async function loadPool() {
   if (poolCache) return poolCache;
   const rows = await getLessonQuestionPool();
@@ -100,7 +106,9 @@ function renderOptions(pool, selectedArea, selectedActivity) {
 }
 
 async function renderSelector() {
-  if (!isTeacherMode()) return;
+  renderTimer = null;
+  removeDuplicateSelectors();
+  if (loading || !isTeacherMode()) return;
   const dashboard = document.querySelector('#dashboard .teacher-dashboard') || document.querySelector('#dashboard');
   if (!dashboard || document.querySelector('[data-lesson-selector]')) return;
 
@@ -108,11 +116,15 @@ async function renderSelector() {
   if (!classCode) return;
 
   loading = true;
+  dashboard.dataset.lessonSelectorLoading = '1';
   try {
     const [pool, setting] = await Promise.all([
       loadPool(),
       getClassLessonSetting(classCode).catch(() => ({ mode: 'daily' }))
     ]);
+    removeDuplicateSelectors();
+    if (document.querySelector('[data-lesson-selector]')) return;
+
     const selectedArea = setting?.area_code || 'S';
     const selectedActivity = Number(setting?.activity_no || 1);
     const options = renderOptions(pool, selectedArea, selectedActivity);
@@ -146,9 +158,11 @@ async function renderSelector() {
       </section>
     `);
 
+    removeDuplicateSelectors();
     bindSelector(pool, classCode);
   } finally {
     loading = false;
+    delete dashboard.dataset.lessonSelectorLoading;
   }
 }
 
@@ -156,7 +170,8 @@ function bindSelector(pool, classCode) {
   const form = document.querySelector('[data-lesson-form]');
   const areaSelect = form?.elements.area;
   const activitySelect = form?.elements.activity;
-  if (!form || !areaSelect || !activitySelect) return;
+  if (!form || !areaSelect || !activitySelect || form.dataset.bound === '1') return;
+  form.dataset.bound = '1';
 
   areaSelect.addEventListener('change', () => {
     const options = renderOptions(pool, areaSelect.value, 1);
@@ -174,7 +189,7 @@ function bindSelector(pool, classCode) {
       activeUntil: form.elements.activeUntil.value || today()
     });
     document.querySelector('[data-lesson-selector]')?.remove();
-    await renderSelector();
+    scheduleRender();
   });
 
   document.querySelector('[data-lesson-daily]')?.addEventListener('click', async () => {
@@ -185,8 +200,8 @@ function bindSelector(pool, classCode) {
       activeUntil: today()
     });
     document.querySelector('[data-lesson-selector]')?.remove();
-    await renderSelector();
-  });
+    scheduleRender();
+  }, { once: true });
 }
 
 async function request(path, payload = null) {
