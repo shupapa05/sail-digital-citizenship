@@ -45,9 +45,21 @@ function currentStage(status, type) {
   return Math.min(5, Math.floor(typeCount(status, type) / PRACTICES_PER_STAGE) + 1);
 }
 
+function isLessonQuestionPayload(payload) {
+  return payload?.mission_selection?.mode === 'lesson' ||
+    payload?.missions?.some(mission => mission?.lesson_mode || mission?.lesson_question_id);
+}
+
 function filterDailyStageMissions(payload) {
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.missions)) {
     return payload;
+  }
+
+  if (isLessonQuestionPayload(payload)) {
+    return {
+      ...payload,
+      daily_limit: Number(payload.daily_limit || 2)
+    };
   }
 
   const today = todayKst();
