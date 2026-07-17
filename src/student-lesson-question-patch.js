@@ -1,6 +1,11 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 
 const PATCH_KEY = '__SAIL_STUDENT_LESSON_QUESTION_PATCHED__';
+const PATCHED_RPC_PATHS = [
+  '/rpc/login_student',
+  '/rpc/get_student_home',
+  '/rpc/save_mission_result'
+];
 
 if (!window[PATCH_KEY]) {
   window[PATCH_KEY] = true;
@@ -26,21 +31,40 @@ function hash(value) {
   return String(value || '').split('').reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0);
 }
 
+function readBodyPayload(init) {
+  try {
+    if (!init?.body || typeof init.body !== 'string') return {};
+    return JSON.parse(init.body) || {};
+  } catch {
+    return {};
+  }
+}
+
+function getLoginCode(data, init) {
+  const payload = readBodyPayload(init);
+  return data?.student?.login_code || payload?.p_login_code || payload?.p_payload?.loginCode || localStorage.getItem('SAIL_LOGIN_CODE') || '';
+}
+
+function isPatchableRpc(url) {
+  return PATCHED_RPC_PATHS.some(path => url.includes(path));
+}
+
 function toMission(row) {
   const areaCode = row?.area_code || 'S';
   const stage = Number(row?.stage || 1);
+  const stageLabel = row?.stage_label || '수업 질문';
   return {
     mission_id: row?.base_mission_id || `M-${areaCode}-${String(stage).padStart(2, '0')}`,
     mission_type: areaCode,
     level: stage,
     mission_title: row?.activity_title || '수업 활동 질문',
     event_question: row?.question || '오늘 수업에서 배운 내용을 떠올려 볼까요?',
-    check_question: row?.stage_label || '수업 질문',
+    check_question: `수업 질문 · ${stageLabel}`,
     mission_date: missionDate(),
     lesson_mode: true,
     lesson_activity_no: row?.activity_no || 0,
     lesson_question_id: row?.lesson_question_id || '',
-    lesson_stage_label: row?.stage_label || ''
+    lesson_stage_label: stageLabel
   };
 }
 
@@ -51,13 +75,13 @@ function patchStudentHome() {
   window.fetch = async function patchedFetch(input, init) {
     const response = await originalFetch.apply(this, arguments);
     const url = typeof input === 'string' ? input : input?.url || '';
-    if (!url.includes('/rpc/get_student_home')) return response;
+    if (!isPatchableRpc(url)) return response;
 
     try {
       const data = await response.clone().json();
       const studentId = data?.student?.student_id || localStorage.getItem('SAIL_STUDENT_ID') || '';
-      const loginCode = localStorage.getItem('SAIL_LOGIN_CODE') || '';
-      if (!studentId) return response;
+      const loginCode = getLoginCode(data, init);
+      if (!studentId || data?.student?.is_teacher) return response;
 
       const lesson = await getActiveLessonQuestions(studentId, loginCode);
       const questions = Array.isArray(lesson?.questions) ? lesson.questions : [];
@@ -71,7 +95,9 @@ function patchStudentHome() {
         date: todayKey(),
         class_code: lesson.class_code,
         area_code: lesson.area_code,
-        activity_no: lesson.activity_no
+        area_label: lesson.area_label,
+        activity_no: lesson.activity_no,
+        activity_title: lesson.activity_title
       };
 
       const headers = new Headers(response.headers);
