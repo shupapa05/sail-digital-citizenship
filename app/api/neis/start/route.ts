@@ -175,7 +175,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const itemId = String(body.itemId || "");
-    const state = getClassroomState();
+    const state = await getClassroomState();
     const item = state.assessmentItems.find((entry) => entry.id === itemId);
 
     if (!item) {
