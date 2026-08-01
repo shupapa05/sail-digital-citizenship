@@ -1,5 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { optionalEnv } from "./env";
+import { createSupabaseAdmin } from "./supabase-admin";
 
 export type PointType = "observation" | "praise" | "penalty" | "mission" | "submissionAward";
 
@@ -67,7 +69,7 @@ export type AssessmentResult = {
   updatedAt: string;
 };
 
-type ClassroomState = {
+export type ClassroomState = {
   students: Student[];
   records: PointRecord[];
   missions: Mission[];
@@ -87,9 +89,15 @@ const defaultStudents: Student[] = [
 
 const globalStore = globalThis as typeof globalThis & {
   schooltaskClassroomState?: ClassroomState;
+  schooltaskClassroomStorage?: "supabase" | "disk";
 };
 
 const classroomDataPath = join(process.cwd(), "data", "classroom.json");
+const classroomWorkspaceKey = optionalEnv("SCHOOLTASK_WORKSPACE_KEY") || "default";
+
+function canUseSupabaseStore() {
+  return Boolean(optionalEnv("NEXT_PUBLIC_SUPABASE_URL") && optionalEnv("SUPABASE_SERVICE_ROLE_KEY"));
+}
 
 function createDefaultState(): ClassroomState {
   return {
@@ -158,28 +166,81 @@ function loadStateFromDisk() {
   }
 }
 
-function saveState() {
-  const state = getState();
+async function loadStateFromSupabase() {
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("schooltask_classroom_states")
+    .select("state")
+    .eq("workspace_key", classroomWorkspaceKey)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.state) return normalizeState(data.state as ClassroomState);
+
+  const state = createDefaultState();
+  const { error: insertError } = await supabase
+    .from("schooltask_classroom_states")
+    .upsert({
+      workspace_key: classroomWorkspaceKey,
+      state,
+      updated_at: new Date().toISOString()
+    });
+
+  if (insertError) throw insertError;
+  return state;
+}
+
+function saveStateToDisk(state: ClassroomState) {
   mkdirSync(dirname(classroomDataPath), { recursive: true });
   writeFileSync(classroomDataPath, JSON.stringify(state, null, 2), "utf8");
 }
 
-function getState() {
+async function saveState(state: ClassroomState) {
+  if (globalStore.schooltaskClassroomStorage === "supabase") {
+    const supabase = createSupabaseAdmin();
+    const { error } = await supabase
+      .from("schooltask_classroom_states")
+      .upsert({
+        workspace_key: classroomWorkspaceKey,
+        state,
+        updated_at: new Date().toISOString()
+      });
+    if (error) throw error;
+    return;
+  }
+
+  saveStateToDisk(state);
+}
+
+async function getState() {
   if (!globalStore.schooltaskClassroomState) {
-    globalStore.schooltaskClassroomState = loadStateFromDisk();
+    if (canUseSupabaseStore()) {
+      try {
+        globalStore.schooltaskClassroomState = await loadStateFromSupabase();
+        globalStore.schooltaskClassroomStorage = "supabase";
+      } catch {
+        globalStore.schooltaskClassroomState = loadStateFromDisk();
+        globalStore.schooltaskClassroomStorage = "disk";
+      }
+    } else {
+      globalStore.schooltaskClassroomState = loadStateFromDisk();
+      globalStore.schooltaskClassroomStorage = "disk";
+    }
   }
 
   return normalizeState(globalStore.schooltaskClassroomState);
 }
 
-export function getClassroomState() {
-  const state = getState();
-  if (!existsSync(classroomDataPath)) saveState();
+export async function getClassroomState() {
+  const state = await getState();
+  if (globalStore.schooltaskClassroomStorage === "disk" && !existsSync(classroomDataPath)) {
+    await saveState(state);
+  }
   return state;
 }
 
-export function replaceStudents(students: Array<{ number: number; name: string }>) {
-  const state = getState();
+export async function replaceStudents(students: Array<{ number: number; name: string }>) {
+  const state = await getState();
   const nextStudents = students
     .filter((student) => Number.isFinite(student.number) && student.name.trim())
     .sort((a, b) => a.number - b.number)
@@ -194,44 +255,44 @@ export function replaceStudents(students: Array<{ number: number; name: string }
   state.records = state.records.filter((record) => validIds.has(record.studentId));
   state.submissionChecks = state.submissionChecks.filter((check) => validIds.has(check.studentId));
   state.assessmentResults = state.assessmentResults.filter((result) => validIds.has(result.studentId));
-  saveState();
+  await saveState(state);
   return state.students;
 }
 
-export function addPointRecord(input: Omit<PointRecord, "id" | "createdAt">) {
-  const state = getState();
+export async function addPointRecord(input: Omit<PointRecord, "id" | "createdAt">) {
+  const state = await getState();
   const record: PointRecord = {
     ...input,
     id: `r-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     createdAt: new Date().toISOString()
   };
   state.records.unshift(record);
-  saveState();
+  await saveState(state);
   return record;
 }
 
-export function updatePointRecord(recordId: string, input: { points: number; reason: string; type: PointType }) {
-  const state = getState();
+export async function updatePointRecord(recordId: string, input: { points: number; reason: string; type: PointType }) {
+  const state = await getState();
   const record = state.records.find((item) => item.id === recordId);
   if (!record) return null;
 
   record.points = input.points;
   record.reason = input.reason;
   record.type = input.type;
-  saveState();
+  await saveState(state);
   return record;
 }
 
-export function deletePointRecord(recordId: string) {
-  const state = getState();
+export async function deletePointRecord(recordId: string) {
+  const state = await getState();
   const beforeCount = state.records.length;
   state.records = state.records.filter((item) => item.id !== recordId);
-  saveState();
+  await saveState(state);
   return state.records.length !== beforeCount;
 }
 
-export function addMission(title: string, points: number) {
-  const state = getState();
+export async function addMission(title: string, points: number) {
+  const state = await getState();
   const mission: Mission = {
     id: `m-${Date.now()}`,
     title,
@@ -239,77 +300,77 @@ export function addMission(title: string, points: number) {
     createdAt: new Date().toISOString()
   };
   state.missions.unshift(mission);
-  saveState();
+  await saveState(state);
   return mission;
 }
 
-export function updateMission(missionId: string, input: { title: string; points: number }) {
-  const state = getState();
+export async function updateMission(missionId: string, input: { title: string; points: number }) {
+  const state = await getState();
   const mission = state.missions.find((item) => item.id === missionId);
   if (!mission) return null;
 
   mission.title = input.title;
   mission.points = input.points;
-  saveState();
+  await saveState(state);
   return mission;
 }
 
-export function deleteMission(missionId: string) {
-  const state = getState();
+export async function deleteMission(missionId: string) {
+  const state = await getState();
   const beforeCount = state.missions.length;
   state.missions = state.missions.filter((item) => item.id !== missionId);
-  saveState();
+  await saveState(state);
   return state.missions.length !== beforeCount;
 }
 
-export function addSubmissionTask(title: string) {
-  const state = getState();
+export async function addSubmissionTask(title: string) {
+  const state = await getState();
   const task: SubmissionTask = {
     id: `sub-${Date.now()}`,
     title,
     createdAt: new Date().toISOString()
   };
   state.submissions.unshift(task);
-  saveState();
+  await saveState(state);
   return task;
 }
 
-export function updateSubmissionTask(taskId: string, title: string) {
-  const state = getState();
+export async function updateSubmissionTask(taskId: string, title: string) {
+  const state = await getState();
   const task = state.submissions.find((item) => item.id === taskId);
   if (!task) return null;
 
   task.title = title;
-  saveState();
+  await saveState(state);
   return task;
 }
 
-export function setSubmissionArchived(taskId: string, archived: boolean) {
-  const state = getState();
+export async function setSubmissionArchived(taskId: string, archived: boolean) {
+  const state = await getState();
   const task = state.submissions.find((item) => item.id === taskId);
   if (!task) return null;
 
   task.archivedAt = archived ? new Date().toISOString() : undefined;
-  saveState();
+  await saveState(state);
   return task;
 }
 
-export function deleteSubmissionTask(taskId: string) {
-  const state = getState();
+export async function deleteSubmissionTask(taskId: string) {
+  const state = await getState();
   const beforeCount = state.submissions.length;
   state.submissions = state.submissions.filter((item) => item.id !== taskId);
   state.submissionChecks = state.submissionChecks.filter((item) => item.taskId !== taskId);
-  saveState();
+  await saveState(state);
   return state.submissions.length !== beforeCount;
 }
 
-export function setSubmissionCheck(input: {
+export async function setSubmissionCheck(input: {
   taskId: string;
   studentId: string;
   checked: boolean;
   actor: string;
 }) {
-  const state = getState();
+  const state = await getState();
   const existing = state.submissionChecks.find(
     (item) => item.taskId === input.taskId && item.studentId === input.studentId
   );
@@ -318,7 +379,7 @@ export function setSubmissionCheck(input: {
     existing.checked = input.checked;
     existing.actor = input.actor;
     existing.updatedAt = new Date().toISOString();
-    saveState();
+    await saveState(state);
     return existing;
   }
 
@@ -327,12 +388,12 @@ export function setSubmissionCheck(input: {
     updatedAt: new Date().toISOString()
   };
   state.submissionChecks.push(next);
-  saveState();
+  await saveState(state);
   return next;
 }
 
-export function replaceAssessmentItems(items: Array<Omit<AssessmentItem, "createdAt"> & { createdAt?: string }>) {
-  const state = getState();
+export async function replaceAssessmentItems(items: Array<Omit<AssessmentItem, "createdAt"> & { createdAt?: string }>) {
+  const state = await getState();
   const now = new Date().toISOString();
   const nextItems = items.map((item) => ({
     ...item,
@@ -342,26 +403,26 @@ export function replaceAssessmentItems(items: Array<Omit<AssessmentItem, "create
   const validItemIds = new Set(nextItems.map((item) => item.id));
   state.assessmentItems = nextItems;
   state.assessmentResults = state.assessmentResults.filter((result) => validItemIds.has(result.itemId));
-  saveState();
+  await saveState(state);
   return state.assessmentItems;
 }
 
-export function deleteAssessmentItem(itemId: string) {
-  const state = getState();
+export async function deleteAssessmentItem(itemId: string) {
+  const state = await getState();
   const beforeCount = state.assessmentItems.length;
   state.assessmentItems = state.assessmentItems.filter((item) => item.id !== itemId);
   state.assessmentResults = state.assessmentResults.filter((result) => result.itemId !== itemId);
-  saveState();
+  await saveState(state);
   return state.assessmentItems.length !== beforeCount;
 }
 
-export function setAssessmentResult(input: {
+export async function setAssessmentResult(input: {
   itemId: string;
   studentId: string;
   level: string;
   memo: string;
 }) {
-  const state = getState();
+  const state = await getState();
   const existing = state.assessmentResults.find(
     (result) => result.itemId === input.itemId && result.studentId === input.studentId
   );
@@ -370,7 +431,7 @@ export function setAssessmentResult(input: {
     existing.level = input.level;
     existing.memo = input.memo;
     existing.updatedAt = new Date().toISOString();
-    saveState();
+    await saveState(state);
     return existing;
   }
 
@@ -379,6 +440,6 @@ export function setAssessmentResult(input: {
     updatedAt: new Date().toISOString()
   };
   state.assessmentResults.push(next);
-  saveState();
+  await saveState(state);
   return next;
 }
